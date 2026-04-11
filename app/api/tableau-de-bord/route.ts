@@ -1,0 +1,90 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { Roles, StatutColis } from "@/lib/enums";
+
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session || (session.user as any).role !== Roles.SUPER_ADMIN) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const [
+      totalColis,
+      enregistre,
+      enTransit,
+      livre,
+      annule,
+      litige,
+      revenusData,
+      agentsCount,
+      colisAujourdhui,
+      recentColis,
+      colisParMois,
+    ] = await Promise.all([
+      prisma.colis.count(),
+      prisma.colis.count({ where: { statut: StatutColis.ENREGISTRE } }),
+      prisma.colis.count({ where: { statut: { in: [StatutColis.EN_COURS_ENVOI, StatutColis.EN_TRANSIT] } } }),
+      prisma.colis.count({ where: { statut: StatutColis.LIVRE } }),
+      prisma.colis.count({ where: { statut: StatutColis.ANNULE } }),
+      prisma.colis.count({ where: { statut: StatutColis.LITIGE } }),
+      prisma.colis.aggregate({ _sum: { prixTotal: true, avance: true } }),
+      prisma.user.count({ where: { active: true } }),
+      prisma.colis.findMany({ where: { createdAt: { gte: startOfDay } }, select: { poids: true } }),
+      prisma.colis.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, code: true, expediteurNom: true, destinataireNom: true,
+          destination: true, poids: true, prixTotal: true, statut: true, createdAt: true,
+        },
+      }),
+      prisma.colis.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true, prixTotal: true },
+      }),
+    ]);
+
+    const monthlyMap: Record<string, { count: number; revenus: number }> = {};
+    for (const c of colisParMois) {
+      const key = new Date(c.createdAt).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+      if (!monthlyMap[key]) monthlyMap[key] = { count: 0, revenus: 0 };
+      monthlyMap[key].count++;
+      monthlyMap[key].revenus += c.prixTotal;
+    }
+    const monthlyData = Object.entries(monthlyMap)
+      .map(([month, data]) => ({ month, ...data }))
+      .slice(-6);
+
+    const totalPoids = colisAujourdhui.reduce((sum, c) => sum + c.poids, 0);
+
+    return NextResponse.json({
+      colis: {
+        total: totalColis,
+        enregistre,
+        enTransit,
+        livre,
+        annule,
+        litige,
+        revenusAttendus:  revenusData._sum.prixTotal ?? 0,
+        revenusEncaisses: revenusData._sum.avance    ?? 0,
+      },
+      agents: { total: agentsCount },
+      aujourd_hui: { count: colisAujourdhui.length, poids: Math.round(totalPoids * 10) / 10 },
+      recentColis,
+      monthlyData,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

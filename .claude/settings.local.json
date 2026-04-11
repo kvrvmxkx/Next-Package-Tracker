@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(brew install:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(ls /Users/karamokocoulibaly/Desktop/Apps/package-tracker/prisma.config*)",
+      "Bash(npx prisma:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d[k] for k in ['type','main','exports'] if k in d}, indent=2\\)\\)\")",
+      "Bash(xargs ls:*)",
+      "Bash(xxd \"/Users/karamokocoulibaly/Desktop/Apps/package-tracker/app/\\(public\\)/layout.tsx\")",
+      "Bash(xxd \"/Users/karamokocoulibaly/Desktop/Apps/money-transfert/app/\\(public\\)/layout.tsx\")",
+      "Bash(npx next:*)",
+      "Bash(npx tsc:*)",
+      "Read(//Users/karamokocoulibaly/Desktop/Apps/**)"
+    ]
+  }
+}

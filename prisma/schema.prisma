@@ -1,0 +1,248 @@
+// Package Tracker — Suivi de colis Chine → Mali & Côte d'Ivoire
+// Prisma 7
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Better Auth models ───────────────────────────────────────
+
+model User {
+  id                 String   @id @default(cuid())
+  name               String?
+  firstname          String
+  lastname           String
+  email              String   @unique
+  phone              String
+  emailVerified      Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  role               String   @default("AGENT_CHINE")
+  active             Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+
+  agenceId Int?
+  agence   Agence? @relation(fields: [agenceId], references: [id])
+
+  sessions   Session[]
+  accounts   Account[]
+  colis      Colis[]
+  historique ColisHistorique[]
+  paiements  Paiement[]
+  retraits   Retrait[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Agences ──────────────────────────────────────────────────
+
+model Agence {
+  id     Int     @id @default(autoincrement())
+  nom    String
+  pays   String // "CHINE" | "MALI" | "COTE_DIVOIRE"
+  ville  String?
+  email  String?
+  phone  String?
+  active Boolean @default(true)
+
+  agents           User[]
+  colisOrigine     Colis[] @relation("AgenceOrigine")
+  colisDestination Colis[] @relation("AgenceDestination")
+}
+
+// ─── Colis ────────────────────────────────────────────────────
+
+model Colis {
+  id          String  @id @default(cuid())
+  code        String  @unique // "ML-2026-00142"
+  description String?
+  poids       Float // Poids réel en kg
+
+  destination String // "MALI" | "COTE_DIVOIRE"
+  statut      String @default("ENREGISTRE")
+
+  // Agences
+  agenceOrigineId     Int?
+  agenceOrigine       Agence? @relation("AgenceOrigine", fields: [agenceOrigineId], references: [id])
+  agenceDestinationId Int?
+  agenceDestination   Agence? @relation("AgenceDestination", fields: [agenceDestinationId], references: [id])
+
+  // Expéditeur (Chine)
+  expediteurNom   String
+  expediteurPhone String
+
+  // Destinataire
+  destinataireNom     String
+  destinatairePhone   String
+  destinataireVille   String?
+  destinataireAdresse String?
+
+  // Financier
+  prixTotal  Float   @default(0)
+  avance     Float   @default(0)
+  solde      Float   @default(0) // = prixTotal - avance
+  avancePaye Boolean @default(false)
+  soldePaye  Boolean @default(false)
+
+  // Tarif
+  tarifId Int?
+  tarif   Tarif? @relation(fields: [tarifId], references: [id])
+
+  // Lien public de suivi
+  tokenPublic String @unique @default(cuid())
+
+  notes  String? @db.Text
+  qrCode String? @db.Text // base64 QR code
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent   User   @relation(fields: [agentId], references: [id])
+  agentId String
+
+  historique ColisHistorique[]
+  photos     ColisPhoto[]
+  paiements  Paiement[]
+
+  @@index([code])
+  @@index([tokenPublic])
+  @@index([statut])
+  @@index([destination])
+}
+
+model ColisHistorique {
+  id        String   @id @default(cuid())
+  statut    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  colis   Colis  @relation(fields: [colisId], references: [id], onDelete: Cascade)
+  colisId String
+
+  agent   User   @relation(fields: [agentId], references: [id])
+  agentId String
+
+  @@index([colisId])
+}
+
+model ColisPhoto {
+  id        String   @id @default(cuid())
+  url       String   @db.Text
+  nom       String?
+  createdAt DateTime @default(now())
+
+  colis   Colis  @relation(fields: [colisId], references: [id], onDelete: Cascade)
+  colisId String
+
+  @@index([colisId])
+}
+
+model Paiement {
+  id        String   @id @default(cuid())
+  type      String // "AVANCE" | "SOLDE"
+  montant   Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  colis   Colis  @relation(fields: [colisId], references: [id], onDelete: Cascade)
+  colisId String
+
+  agent   User   @relation(fields: [agentId], references: [id])
+  agentId String
+
+  @@index([colisId])
+}
+
+// ─── Tarification dégressive ──────────────────────────────────
+
+model Tarif {
+  id          Int     @id @default(autoincrement())
+  nom         String
+  destination String // "MALI" | "COTE_DIVOIRE"
+  active      Boolean @default(true)
+
+  tranches TrancheTarif[]
+  colis    Colis[]
+}
+
+model TrancheTarif {
+  id        Int    @id @default(autoincrement())
+  poidsMin  Float // kg minimum (inclus)
+  poidsMax  Float? // kg maximum (inclus) — null = illimité
+  prixParKg Float // prix par kg en XOF
+
+  tarif   Tarif @relation(fields: [tarifId], references: [id], onDelete: Cascade)
+  tarifId Int
+
+  @@index([tarifId])
+}
+
+// ─── Caisse ───────────────────────────────────────────────────
+
+model Retrait {
+  id        String   @id @default(cuid())
+  montant   Float
+  motif     String
+  note      String?
+  createdAt DateTime @default(now())
+
+  agent   User   @relation(fields: [agentId], references: [id])
+  agentId String
+
+  @@index([createdAt])
+}
