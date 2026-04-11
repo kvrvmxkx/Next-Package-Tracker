@@ -12,7 +12,8 @@
       "Bash(xxd \"/Users/karamokocoulibaly/Desktop/Apps/money-transfert/app/\\(public\\)/layout.tsx\")",
       "Bash(npx next:*)",
       "Bash(npx tsc:*)",
-      "Read(//Users/karamokocoulibaly/Desktop/Apps/**)"
+      "Read(//Users/karamokocoulibaly/Desktop/Apps/**)",
+      "Bash(npm run:*)"
     ]
   }
 }

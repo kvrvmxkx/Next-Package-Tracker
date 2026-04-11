@@ -18,13 +18,13 @@ export type ColisWithRelations = Prisma.Result<
       };
     };
   },
-  "findUnique"
+  "findUniqueOrThrow"
 >;
 
 export type TarifWithTranches = Prisma.Result<
   typeof prisma.tarif,
   { include: { tranches: true } },
-  "findUnique"
+  "findUniqueOrThrow"
 >;
 
 export type ColisListItem = Prisma.Result<
@@ -34,5 +34,5 @@ export type ColisListItem = Prisma.Result<
       agent: { select: { firstname: true; lastname: true } };
     };
   },
-  "findFirst"
+  "findFirstOrThrow"
 >;
