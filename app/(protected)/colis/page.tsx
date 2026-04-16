@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/status-badge";
-import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
 import { StatutColis } from "@/lib/enums";
@@ -68,12 +68,20 @@ export default function ColisPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Colis</h1>
-        <Button asChild>
-          <Link href="/colis/ajouter">
-            <Plus className="w-4 h-4 mr-1" />
-            Nouveau colis
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/colis/groupe/ajouter">
+              <Layers className="w-4 h-4 mr-1" />
+              Envoi groupé
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/colis/ajouter">
+              <Plus className="w-4 h-4 mr-1" />
+              Nouveau colis
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

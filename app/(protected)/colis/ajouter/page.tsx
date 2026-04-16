@@ -88,6 +88,13 @@ export default function AjouterColisPage() {
     (t) => t!.active && t!.destination === destination
   );
 
+  // Pré-sélectionner automatiquement si un seul tarif disponible
+  useEffect(() => {
+    if (tarifsFiltered.length === 1) {
+      form.setValue("tarifId", String(tarifsFiltered[0]!.id));
+    }
+  }, [tarifsFiltered.length, destination]);
+
   async function onSubmit(values: z.infer<typeof colisSchema>) {
     setIsLoading(true);
     try {
@@ -244,6 +251,11 @@ export default function AjouterColisPage() {
                     </Select>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
+                    )}
+                    {tarifsFiltered.length === 0 && !fieldState.invalid && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Aucun tarif actif pour cette destination.
+                      </p>
                     )}
                   </Field>
                 )}

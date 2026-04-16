@@ -29,12 +29,13 @@ model User {
   agenceId Int?
   agence   Agence? @relation(fields: [agenceId], references: [id])
 
-  sessions   Session[]
-  accounts   Account[]
-  colis      Colis[]
-  historique ColisHistorique[]
-  paiements  Paiement[]
-  retraits   Retrait[]
+  sessions       Session[]
+  accounts       Account[]
+  colis          Colis[]
+  groupesColis   GroupeColis[]
+  historique     ColisHistorique[]
+  paiements      Paiement[]
+  retraits       Retrait[]
 
   @@map("user")
 }
@@ -105,6 +106,30 @@ model Agence {
   colisDestination Colis[] @relation("AgenceDestination")
 }
 
+// ─── Groupe de colis ──────────────────────────────────────────
+
+model GroupeColis {
+  id          String  @id @default(cuid())
+  code        String  @unique // "CF0001" … "CF9999"
+  destination String  // "MALI" | "COTE_DIVOIRE"
+
+  expediteurEstFournisseur Boolean @default(false)
+  expediteurNom            String
+  expediteurPhone          String
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent   User   @relation(fields: [agentId], references: [id])
+  agentId String
+
+  colis Colis[]
+
+  @@index([code])
+}
+
 // ─── Colis ────────────────────────────────────────────────────
 
 model Colis {
@@ -121,6 +146,10 @@ model Colis {
   agenceOrigine       Agence? @relation("AgenceOrigine", fields: [agenceOrigineId], references: [id])
   agenceDestinationId Int?
   agenceDestination   Agence? @relation("AgenceDestination", fields: [agenceDestinationId], references: [id])
+
+  // Groupe (envoi groupé)
+  groupeId String?
+  groupe   GroupeColis? @relation(fields: [groupeId], references: [id])
 
   // Expéditeur (Chine)
   expediteurEstFournisseur Boolean @default(false)
