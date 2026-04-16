@@ -56,7 +56,7 @@ export default function LoginPage() {
           </p>
           <h1 className="text-6xl font-bold font-display leading-none">
             Mali
-            <br />& CI
+            <br />& Côte d'Ivoire
           </h1>
         </div>
         <p className="text-[10px] uppercase tracking-[0.2em] opacity-30">

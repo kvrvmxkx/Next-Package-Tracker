@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
     const {
       description,
       poids,
+      nombreColis,
       destination,
+      expediteurEstFournisseur,
       expediteurNom,
       expediteurPhone,
       destinataireNom,
@@ -69,8 +71,11 @@ export async function POST(request: NextRequest) {
       agenceDestinationId,
     } = await request.json();
 
-    if (!poids || !destination || !expediteurNom || !expediteurPhone || !destinataireNom || !destinatairePhone) {
+    if (!poids || !destination || !destinataireNom || !destinatairePhone) {
       return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
+    }
+    if (!expediteurEstFournisseur && (!expediteurNom || !expediteurPhone)) {
+      return NextResponse.json({ error: "Informations expéditeur requises" }, { status: 400 });
     }
 
     const avanceVal    = parseFloat(avance ?? 0);
@@ -93,9 +98,11 @@ export async function POST(request: NextRequest) {
         tokenPublic: generatePublicToken(),
         description,
         poids: parseFloat(poids),
+        nombreColis: nombreColis ? parseInt(nombreColis) : 1,
         destination,
-        expediteurNom,
-        expediteurPhone,
+        expediteurEstFournisseur: !!expediteurEstFournisseur,
+        expediteurNom: expediteurNom ?? "",
+        expediteurPhone: expediteurPhone ?? "",
         destinataireNom,
         destinatairePhone,
         destinataireVille,

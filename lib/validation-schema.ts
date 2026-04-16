@@ -5,16 +5,35 @@ import { Destination } from "./enums";
 export const colisSchema = z.object({
   description: z.string().optional(),
   poids: z.string().min(1, "Poids requis"),
+  nombreColis: z.string().optional(),
   destination: z.nativeEnum(Destination, { message: "Destination invalide" }),
   tarifId: z.string().optional(),
-  expediteurNom: z.string().min(2, "Nom expéditeur requis"),
-  expediteurPhone: z.string().min(8, "Téléphone expéditeur requis"),
+  expediteurEstFournisseur: z.boolean().default(false),
+  expediteurNom: z.string().optional(),
+  expediteurPhone: z.string().optional(),
   destinataireNom: z.string().min(2, "Nom destinataire requis"),
   destinatairePhone: z.string().min(8, "Téléphone destinataire requis"),
   destinataireVille: z.string().optional(),
   destinataireAdresse: z.string().optional(),
   avance: z.string().optional(),
   notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (!data.expediteurEstFournisseur) {
+    if (!data.expediteurNom || data.expediteurNom.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Nom expéditeur requis",
+        path: ["expediteurNom"],
+      });
+    }
+    if (!data.expediteurPhone || data.expediteurPhone.length < 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Téléphone expéditeur requis",
+        path: ["expediteurPhone"],
+      });
+    }
+  }
 });
 
 export const userSchema = z.object({

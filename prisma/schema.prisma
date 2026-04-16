@@ -123,8 +123,12 @@ model Colis {
   agenceDestination   Agence? @relation("AgenceDestination", fields: [agenceDestinationId], references: [id])
 
   // Expéditeur (Chine)
-  expediteurNom   String
-  expediteurPhone String
+  expediteurEstFournisseur Boolean @default(false)
+  expediteurNom            String
+  expediteurPhone          String
+
+  // Nombre de colis dans l'envoi
+  nombreColis Int @default(1)
 
   // Destinataire
   destinataireNom     String

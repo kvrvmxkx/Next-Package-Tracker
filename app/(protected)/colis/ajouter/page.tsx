@@ -21,7 +21,7 @@ import { colisSchema } from "@/lib/validation-schema";
 import { Destination } from "@/lib/enums";
 import { calculatePrixTotal, amountFormatXOF } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Loader2, Package, Store } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
@@ -32,16 +32,19 @@ export default function AjouterColisPage() {
   const [tarifs, setTarifs] = useState<TarifWithTranches[]>([]);
   const [prixCalcule, setPrixCalcule] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [estFournisseur, setEstFournisseur] = useState(false);
 
   const form = useForm<z.infer<typeof colisSchema>>({
     resolver: zodResolver(colisSchema),
     defaultValues: {
       description: "",
       poids: "",
+      nombreColis: "1",
       destination:
         (session?.user as any)?.role === "AGENT_CI"
           ? Destination.COTE_DIVOIRE
           : Destination.MALI,
+      expediteurEstFournisseur: false,
       expediteurNom: "",
       expediteurPhone: "",
       destinataireNom: "",
@@ -94,6 +97,7 @@ export default function AjouterColisPage() {
         body: JSON.stringify({
           ...values,
           poids: parseFloat(values.poids),
+          nombreColis: parseInt(values.nombreColis || "1"),
           avance: parseFloat(values.avance || "0"),
           prixTotal: prixCalcule,
           agentId: session?.user?.id,
@@ -192,6 +196,26 @@ export default function AjouterColisPage() {
                     </Field>
                   )}
                 />
+
+                <Controller
+                  name="nombreColis"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid} className="col-span-2">
+                      <FieldLabel>Nombre de colis</FieldLabel>
+                      <Input
+                        {...field}
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="1"
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
               </div>
 
               <Controller
@@ -265,9 +289,37 @@ export default function AjouterColisPage() {
         {/* Expéditeur */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Expéditeur (Chine)</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Expéditeur (Chine)</CardTitle>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !estFournisseur;
+                  setEstFournisseur(next);
+                  form.setValue("expediteurEstFournisseur", next);
+                  if (next) {
+                    form.setValue("expediteurNom", "");
+                    form.setValue("expediteurPhone", "");
+                    form.clearErrors(["expediteurNom", "expediteurPhone"]);
+                  }
+                }}
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  estFournisseur
+                    ? "bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Store className="w-3 h-3" />
+                Fournisseur
+              </button>
+            </div>
+            {estFournisseur && (
+              <p className="text-xs text-muted-foreground mt-1">
+                L&apos;expéditeur est un fournisseur — informations non requises.
+              </p>
+            )}
           </CardHeader>
-          <CardContent>
+          <CardContent className={estFournisseur ? "opacity-40 pointer-events-none select-none" : ""}>
             <FieldGroup>
               <div className="grid grid-cols-2 gap-4">
                 <Controller
@@ -275,8 +327,8 @@ export default function AjouterColisPage() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Nom *</FieldLabel>
-                      <Input {...field} placeholder="Nom complet" />
+                      <FieldLabel>Nom {!estFournisseur && "*"}</FieldLabel>
+                      <Input {...field} placeholder="Nom complet" disabled={estFournisseur} />
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} />
                       )}
@@ -288,8 +340,8 @@ export default function AjouterColisPage() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Téléphone *</FieldLabel>
-                      <Input {...field} placeholder="+86 XX XXXX XXXX" />
+                      <FieldLabel>Téléphone {!estFournisseur && "*"}</FieldLabel>
+                      <Input {...field} placeholder="+86 XX XXXX XXXX" disabled={estFournisseur} />
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} />
                       )}
