@@ -29,7 +29,7 @@ type AgentData = {
     soldesJour: number;
   };
   recentColis: {
-    id: string; code: string; expediteurNom: string; destinataireNom: string;
+    id: string; code: string; expediteurEstFournisseur: boolean; expediteurNom: string; destinataireNom: string;
     destination: string; poids: number; prixTotal: number; solde?: number;
     soldePaye?: boolean; statut: string; createdAt: string;
   }[];

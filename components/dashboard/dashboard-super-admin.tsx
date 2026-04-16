@@ -21,7 +21,7 @@ type DashboardData = {
   agents: { total: number };
   aujourd_hui: { count: number; poids: number };
   recentColis: {
-    id: string; code: string; expediteurNom: string; destinataireNom: string;
+    id: string; code: string; expediteurEstFournisseur: boolean; expediteurNom: string; destinataireNom: string;
     destination: string; poids: number; prixTotal: number; statut: string; createdAt: string;
   }[];
   monthlyData: { month: string; count: number; revenus: number }[];
@@ -222,7 +222,7 @@ export default function DashboardSuperAdmin() {
                   <div className="flex items-start justify-between gap-4 text-sm">
                     <div>
                       <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Expéditeur</p>
-                      <p>{c.expediteurNom}</p>
+                      <p>{c.expediteurEstFournisseur ? <span className="text-muted-foreground">Fournisseur</span> : c.expediteurNom}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Destinataire</p>
@@ -260,7 +260,9 @@ export default function DashboardSuperAdmin() {
                   {data.recentColis.map((c) => (
                     <TableRow key={c.id} className="hover:bg-muted/40 transition-colors border-b border-border/50">
                       <TableCell className="font-display text-xs font-bold py-3.5">{c.code}</TableCell>
-                      <TableCell className="text-sm py-3.5">{c.expediteurNom}</TableCell>
+                      <TableCell className="text-sm py-3.5">
+                        {c.expediteurEstFournisseur ? <span className="text-muted-foreground">Fournisseur</span> : c.expediteurNom}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground py-3.5">{c.destinataireNom}</TableCell>
                       <TableCell className="py-3.5">
                         <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider">

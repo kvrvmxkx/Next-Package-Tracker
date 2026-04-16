@@ -13,7 +13,9 @@
       "Bash(npx next:*)",
       "Bash(npx tsc:*)",
       "Read(//Users/karamokocoulibaly/Desktop/Apps/**)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(mkdir -p \"/Users/karamokocoulibaly/Desktop/Apps/package-tracker/app/api/groupes/[code]\")",
+      "Bash(mkdir -p \"/Users/karamokocoulibaly/Desktop/Apps/package-tracker/app/\\(protected\\)/colis/groupe/[code]\")"
     ]
   }
 }

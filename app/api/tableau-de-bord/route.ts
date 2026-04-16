@@ -44,7 +44,7 @@ export async function GET() {
         take: 5,
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, code: true, expediteurNom: true, destinataireNom: true,
+          id: true, code: true, expediteurEstFournisseur: true, expediteurNom: true, destinataireNom: true,
           destination: true, poids: true, prixTotal: true, statut: true, createdAt: true,
         },
       }),

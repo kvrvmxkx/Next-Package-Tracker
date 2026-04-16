@@ -23,9 +23,11 @@ import {
 import {
   LayoutDashboard,
   Package,
+  Layers,
   Users,
   Tag,
   Vault,
+  Settings,
   LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -59,6 +61,17 @@ const items: MenuItem[] = [
     ],
   },
   {
+    title: "Envois groupés",
+    url: "/colis/groupe",
+    icon: Layers,
+    roles: [
+      Roles.SUPER_ADMIN,
+      Roles.AGENT_CHINE,
+      Roles.AGENT_MALI,
+      Roles.AGENT_CI,
+    ],
+  },
+  {
     title: "Agents",
     url: "/utilisateurs",
     icon: Users,
@@ -75,6 +88,17 @@ const items: MenuItem[] = [
     url: "/caisse",
     icon: Vault,
     roles: [Roles.SUPER_ADMIN],
+  },
+  {
+    title: "Paramètres",
+    url: "/parametres",
+    icon: Settings,
+    roles: [
+      Roles.SUPER_ADMIN,
+      Roles.AGENT_CHINE,
+      Roles.AGENT_MALI,
+      Roles.AGENT_CI,
+    ],
   },
 ];
 

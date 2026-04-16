@@ -3,7 +3,32 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { generateColisCode, generatePublicToken } from "@/lib/utils";
-import { StatutColis } from "@/lib/enums";
+import { StatutColis, Roles } from "@/lib/enums";
+
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const role = (session.user as any).role;
+
+  const where =
+    role === Roles.AGENT_MALI
+      ? { destination: "MALI" }
+      : role === Roles.AGENT_CI
+      ? { destination: "COTE_DIVOIRE" }
+      : {};
+
+  const groupes = await prisma.groupeColis.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      agent: { select: { firstname: true, lastname: true } },
+      colis: { select: { id: true, statut: true } },
+    },
+  });
+
+  return NextResponse.json(groupes);
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });

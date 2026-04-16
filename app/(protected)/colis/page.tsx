@@ -70,9 +70,9 @@ export default function ColisPage() {
         <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Colis</h1>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/colis/groupe/ajouter">
+            <Link href="/colis/groupe">
               <Layers className="w-4 h-4 mr-1" />
-              Envoi groupé
+              Envois groupés
             </Link>
           </Button>
           <Button asChild>
@@ -139,7 +139,7 @@ export default function ColisPage() {
               <div className="flex items-start justify-between gap-4 text-sm">
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Expéditeur</p>
-                  <p>{c.expediteurNom}</p>
+                  <p>{c.expediteurEstFournisseur ? <span className="text-muted-foreground">Fournisseur</span> : c.expediteurNom}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Destinataire</p>
@@ -217,7 +217,11 @@ export default function ColisPage() {
               paginated.map((c) => (
                 <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-display text-xs font-bold whitespace-nowrap">{c.code}</TableCell>
-                  <TableCell className="whitespace-nowrap text-sm">{c.expediteurNom}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {c.expediteurEstFournisseur
+                      ? <span className="text-muted-foreground">Fournisseur</span>
+                      : c.expediteurNom}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="text-sm">{c.destinataireNom}</div>
                     <div className="text-xs text-muted-foreground">{c.destinatairePhone}</div>

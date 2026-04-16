@@ -33,6 +33,7 @@ import {
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
+import { getFormSettings, type FormSettings } from "@/lib/form-settings";
 
 // ─── Schema ──────────────────────────────────────────────────
 
@@ -108,6 +109,9 @@ export default function AjouterGroupePage() {
   const [tarifs, setTarifs] = useState<TarifWithTranches[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [estFournisseur, setEstFournisseur] = useState(false);
+  const [fs, setFs] = useState<FormSettings | null>(null);
+
+  useEffect(() => { setFs(getFormSettings()); }, []);
   const [codeGroupe, setCodeGroupe] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(true);
 
@@ -292,20 +296,22 @@ export default function AjouterGroupePage() {
                   </Field>
                 )}
               />
-              <Controller
-                name="notes"
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel>Notes internes</FieldLabel>
-                    <Textarea
-                      {...field}
-                      placeholder="Remarques sur l'envoi..."
-                      rows={2}
-                    />
-                  </Field>
-                )}
-              />
+              {fs?.afficherNotes !== false && (
+                <Controller
+                  name="notes"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel>Notes internes</FieldLabel>
+                      <Textarea
+                        {...field}
+                        placeholder="Remarques sur l'envoi..."
+                        rows={2}
+                      />
+                    </Field>
+                  )}
+                />
+              )}
             </FieldGroup>
           </CardContent>
         </Card>
@@ -470,26 +476,30 @@ export default function AjouterGroupePage() {
                       </Field>
                     )}
                   />
-                  <Controller
-                    name={`colis.${index}.destinataireVille`}
-                    control={form.control}
-                    render={({ field }) => (
-                      <Field>
-                        <FieldLabel>Ville</FieldLabel>
-                        <Input {...field} placeholder="Ex: Bamako" />
-                      </Field>
-                    )}
-                  />
-                  <Controller
-                    name={`colis.${index}.destinataireAdresse`}
-                    control={form.control}
-                    render={({ field }) => (
-                      <Field>
-                        <FieldLabel>Adresse</FieldLabel>
-                        <Input {...field} placeholder="Quartier, rue..." />
-                      </Field>
-                    )}
-                  />
+                  {fs?.afficherVille !== false && (
+                    <Controller
+                      name={`colis.${index}.destinataireVille`}
+                      control={form.control}
+                      render={({ field }) => (
+                        <Field>
+                          <FieldLabel>Ville</FieldLabel>
+                          <Input {...field} placeholder="Ex: Bamako" />
+                        </Field>
+                      )}
+                    />
+                  )}
+                  {fs?.afficherAdresse !== false && (
+                    <Controller
+                      name={`colis.${index}.destinataireAdresse`}
+                      control={form.control}
+                      render={({ field }) => (
+                        <Field>
+                          <FieldLabel>Adresse</FieldLabel>
+                          <Input {...field} placeholder="Quartier, rue..." />
+                        </Field>
+                      )}
+                    />
+                  )}
                 </div>
 
                 {/* Colis info */}
@@ -548,16 +558,18 @@ export default function AjouterGroupePage() {
                       </Field>
                     )}
                   />
-                  <Controller
-                    name={`colis.${index}.description`}
-                    control={form.control}
-                    render={({ field }) => (
-                      <Field className="col-span-2">
-                        <FieldLabel>Description</FieldLabel>
-                        <Input {...field} placeholder="Contenu du colis..." />
-                      </Field>
-                    )}
-                  />
+                  {fs?.afficherDescription !== false && (
+                    <Controller
+                      name={`colis.${index}.description`}
+                      control={form.control}
+                      render={({ field }) => (
+                        <Field className="col-span-2">
+                          <FieldLabel>Description</FieldLabel>
+                          <Input {...field} placeholder="Contenu du colis..." />
+                        </Field>
+                      )}
+                    />
+                  )}
                   <Controller
                     name={`colis.${index}.avance`}
                     control={form.control}

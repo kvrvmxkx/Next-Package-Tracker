@@ -25,6 +25,7 @@ import { ArrowLeft, Loader2, Package, Store } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
+import { getFormSettings, type FormSettings } from "@/lib/form-settings";
 
 export default function AjouterColisPage() {
   const router = useRouter();
@@ -33,6 +34,9 @@ export default function AjouterColisPage() {
   const [prixCalcule, setPrixCalcule] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [estFournisseur, setEstFournisseur] = useState(false);
+  const [fs, setFs] = useState<FormSettings | null>(null);
+
+  useEffect(() => { setFs(getFormSettings()); }, []);
 
   const form = useForm<z.infer<typeof colisSchema>>({
     resolver: zodResolver(colisSchema),
@@ -284,16 +288,18 @@ export default function AjouterColisPage() {
                 </div>
               )}
 
-              <Controller
-                name="description"
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel>Description du contenu</FieldLabel>
-                    <Input {...field} placeholder="Ex: Vêtements, électronique..." />
-                  </Field>
-                )}
-              />
+              {fs?.afficherDescription !== false && (
+                <Controller
+                  name="description"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel>Description du contenu</FieldLabel>
+                      <Input {...field} placeholder="Ex: Vêtements, électronique..." />
+                    </Field>
+                  )}
+                />
+              )}
             </FieldGroup>
           </CardContent>
         </Card>
@@ -399,26 +405,30 @@ export default function AjouterColisPage() {
                     </Field>
                   )}
                 />
-                <Controller
-                  name="destinataireVille"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Field>
-                      <FieldLabel>Ville</FieldLabel>
-                      <Input {...field} placeholder="Ex: Bamako" />
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="destinataireAdresse"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Field>
-                      <FieldLabel>Adresse</FieldLabel>
-                      <Input {...field} placeholder="Quartier, rue..." />
-                    </Field>
-                  )}
-                />
+                {fs?.afficherVille !== false && (
+                  <Controller
+                    name="destinataireVille"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel>Ville</FieldLabel>
+                        <Input {...field} placeholder="Ex: Bamako" />
+                      </Field>
+                    )}
+                  />
+                )}
+                {fs?.afficherAdresse !== false && (
+                  <Controller
+                    name="destinataireAdresse"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel>Adresse</FieldLabel>
+                        <Input {...field} placeholder="Quartier, rue..." />
+                      </Field>
+                    )}
+                  />
+                )}
               </div>
             </FieldGroup>
           </CardContent>
@@ -447,20 +457,22 @@ export default function AjouterColisPage() {
                   </Field>
                 )}
               />
-              <Controller
-                name="notes"
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel>Notes internes</FieldLabel>
-                    <Textarea
-                      {...field}
-                      placeholder="Remarques, instructions de livraison..."
-                      rows={3}
-                    />
-                  </Field>
-                )}
-              />
+              {fs?.afficherNotes !== false && (
+                <Controller
+                  name="notes"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel>Notes internes</FieldLabel>
+                      <Textarea
+                        {...field}
+                        placeholder="Remarques, instructions de livraison..."
+                        rows={3}
+                      />
+                    </Field>
+                  )}
+                />
+              )}
             </FieldGroup>
           </CardContent>
         </Card>
