@@ -8,7 +8,7 @@ export const colisSchema = z.object({
   nombreColis: z.string().optional(),
   destination: z.nativeEnum(Destination, { message: "Destination invalide" }),
   tarifId: z.string().optional(),
-  expediteurEstFournisseur: z.boolean().default(false),
+  expediteurEstFournisseur: z.boolean(),
   expediteurNom: z.string().optional(),
   expediteurPhone: z.string().optional(),
   destinataireNom: z.string().min(2, "Nom destinataire requis"),
