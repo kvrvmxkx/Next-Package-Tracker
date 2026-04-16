@@ -43,7 +43,7 @@ const sousColis = z.object({
   destinataireAdresse: z.string().optional(),
   description: z.string().optional(),
   poids: z.string().min(1, "Poids requis"),
-  tarifId: z.string().optional(),
+  tarifId: z.string().min(1, "Tarif requis"),
   avance: z.string().optional(),
 });
 
@@ -167,6 +167,16 @@ export default function AjouterGroupePage() {
   const tarifsFiltered = tarifs.filter(
     (t) => t!.active && t!.destination === destination
   );
+
+  // Pré-sélectionner automatiquement si un seul tarif disponible
+  useEffect(() => {
+    if (tarifsFiltered.length === 1) {
+      const id = String(tarifsFiltered[0]!.id);
+      fields.forEach((_, index) => {
+        form.setValue(`colis.${index}.tarifId`, id);
+      });
+    }
+  }, [tarifsFiltered.length, destination]);
 
   async function onSubmit(values: GroupeFormValues) {
     if (!codeGroupe) {
@@ -400,7 +410,7 @@ export default function AjouterGroupePage() {
                     destinataireAdresse: "",
                     description: "",
                     poids: "",
-                    tarifId: "",
+                    tarifId: tarifsFiltered.length === 1 ? String(tarifsFiltered[0]!.id) : "",
                     avance: "0",
                   })
                 }
@@ -506,9 +516,9 @@ export default function AjouterGroupePage() {
                   <Controller
                     name={`colis.${index}.tarifId`}
                     control={form.control}
-                    render={({ field }) => (
-                      <Field>
-                        <FieldLabel>Tarif</FieldLabel>
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>Tarif *</FieldLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger>
                             <SelectValue placeholder="Choisir" />
@@ -527,6 +537,9 @@ export default function AjouterGroupePage() {
                             )}
                           </SelectContent>
                         </Select>
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
                         <PrixColis
                           poids={colisValues[index]?.poids ?? ""}
                           tarifId={colisValues[index]?.tarifId}
