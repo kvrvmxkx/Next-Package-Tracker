@@ -57,9 +57,9 @@ async function main() {
       active: true,
       tranches: {
         create: [
-          { poidsMin: 0,    poidsMax: 10,   prixParKg: 5000 },
-          { poidsMin: 10.01, poidsMax: 50,  prixParKg: 4500 },
-          { poidsMin: 50.01, poidsMax: null, prixParKg: 4000 },
+          { poidsMin: 0,    poidsMax: 10,   prixParKg: 10000 },
+          { poidsMin: 10.01, poidsMax: 50,  prixParKg: 10000 },
+          { poidsMin: 50.01, poidsMax: null, prixParKg: 10000 },
         ],
       },
     },
@@ -74,9 +74,9 @@ async function main() {
       active: true,
       tranches: {
         create: [
-          { poidsMin: 0,    poidsMax: 10,   prixParKg: 5500 },
-          { poidsMin: 10.01, poidsMax: 50,  prixParKg: 5000 },
-          { poidsMin: 50.01, poidsMax: null, prixParKg: 4500 },
+          { poidsMin: 0,    poidsMax: 10,   prixParKg: 10000 },
+          { poidsMin: 10.01, poidsMax: 50,  prixParKg: 10000 },
+          { poidsMin: 50.01, poidsMax: null, prixParKg: 10000 },
         ],
       },
     },
