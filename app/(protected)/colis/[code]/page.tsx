@@ -31,7 +31,8 @@ import {
   CreditCard,
   CheckCircle,
   Loader2,
-  QrCode,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -65,6 +66,17 @@ export default function ColisDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updatingStatut, setUpdatingStatut] = useState(false);
 
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    description: "", poids: "", expediteurNom: "", expediteurPhone: "",
+    destinataireNom: "", destinatairePhone: "", destinataireVille: "", destinataireAdresse: "", notes: "",
+  });
+
+  // Delete
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Paiement dialog
   const [paiementOpen, setPaiementOpen] = useState(false);
   const [paiementType, setPaiementType] = useState<"AVANCE" | "SOLDE">("AVANCE");
@@ -87,6 +99,52 @@ export default function ColisDetailPage() {
   useEffect(() => {
     fetchColis();
   }, [code]);
+
+  function openEdit() {
+    if (!colis) return;
+    setEditForm({
+      description: colis.description ?? "",
+      poids: String(colis.poids),
+      expediteurNom: colis.expediteurNom,
+      expediteurPhone: colis.expediteurPhone,
+      destinataireNom: colis.destinataireNom,
+      destinatairePhone: colis.destinatairePhone,
+      destinataireVille: colis.destinataireVille ?? "",
+      destinataireAdresse: colis.destinataireAdresse ?? "",
+      notes: colis.notes ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    setEditLoading(true);
+    const res = await fetch(`/api/colis/${code}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    if (res.ok) {
+      toast.success("Colis mis à jour", { position: "bottom-right" });
+      setEditOpen(false);
+      fetchColis();
+    } else {
+      toast.error("Erreur lors de la mise à jour", { position: "bottom-right" });
+    }
+    setEditLoading(false);
+  }
+
+  async function deleteColis() {
+    if (!confirm(`Supprimer définitivement le colis ${code} ?`)) return;
+    setDeleteLoading(true);
+    const res = await fetch(`/api/colis/${code}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Colis supprimé", { position: "bottom-right" });
+      router.push("/colis");
+    } else {
+      toast.error("Erreur lors de la suppression", { position: "bottom-right" });
+      setDeleteLoading(false);
+    }
+  }
 
   async function updateStatut(newStatut: string) {
     setUpdatingStatut(true);
@@ -166,7 +224,15 @@ export default function ColisDetailPage() {
             </p>
           </div>
         </div>
-        <StatusBadge statut={colis.statut} />
+        <div className="flex items-center gap-2">
+          <StatusBadge statut={colis.statut} />
+          <Button variant="outline" size="icon" onClick={openEdit}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={deleteColis} disabled={deleteLoading}>
+            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+          </Button>
+        </div>
       </div>
 
       {/* Lien public */}
@@ -387,6 +453,77 @@ export default function ColisDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le colis {colis.code}</DialogTitle>
+          </DialogHeader>
+          <FieldGroup className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Poids (kg)</FieldLabel>
+                <Input type="number" step="0.1" value={editForm.poids}
+                  onChange={(e) => setEditForm((f) => ({ ...f, poids: e.target.value }))} />
+              </Field>
+              <Field>
+                <FieldLabel>Description</FieldLabel>
+                <Input value={editForm.description}
+                  onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Expéditeur</FieldLabel>
+                <Input value={editForm.expediteurNom}
+                  onChange={(e) => setEditForm((f) => ({ ...f, expediteurNom: e.target.value }))} />
+              </Field>
+              <Field>
+                <FieldLabel>Tél. expéditeur</FieldLabel>
+                <Input value={editForm.expediteurPhone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, expediteurPhone: e.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Destinataire</FieldLabel>
+                <Input value={editForm.destinataireNom}
+                  onChange={(e) => setEditForm((f) => ({ ...f, destinataireNom: e.target.value }))} />
+              </Field>
+              <Field>
+                <FieldLabel>Tél. destinataire</FieldLabel>
+                <Input value={editForm.destinatairePhone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, destinatairePhone: e.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Ville destinataire</FieldLabel>
+                <Input value={editForm.destinataireVille}
+                  onChange={(e) => setEditForm((f) => ({ ...f, destinataireVille: e.target.value }))} />
+              </Field>
+              <Field>
+                <FieldLabel>Adresse destinataire</FieldLabel>
+                <Input value={editForm.destinataireAdresse}
+                  onChange={(e) => setEditForm((f) => ({ ...f, destinataireAdresse: e.target.value }))} />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel>Notes internes</FieldLabel>
+              <Input value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+            </Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+              <Button onClick={saveEdit} disabled={editLoading}>
+                {editLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Enregistrer
+              </Button>
+            </div>
+          </FieldGroup>
+        </DialogContent>
+      </Dialog>
 
       {/* Paiement Dialog */}
       <Dialog open={paiementOpen} onOpenChange={setPaiementOpen}>

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/status-badge";
-import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
 import { StatutColis } from "@/lib/enums";
@@ -41,10 +41,18 @@ const STATUTS = [
 const PER_PAGE = 10;
 
 export default function ColisPage() {
-  const { colis, loading } = useColis();
+  const { colis, loading, deleteColis } = useColis();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(code: string) {
+    if (!confirm(`Supprimer le colis ${code} ?`)) return;
+    setDeletingId(code);
+    await deleteColis(code);
+    setDeletingId(null);
+  }
 
   const filtered = colis.filter((c) => {
     if (!c) return false;
@@ -172,6 +180,9 @@ export default function ColisPage() {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -262,6 +273,9 @@ export default function ColisPage() {
                         <a href={`${process.env.NEXT_PUBLIC_APP_URL}/suivi/${c.tokenPublic}`} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="w-4 h-4" />
                         </a>
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>

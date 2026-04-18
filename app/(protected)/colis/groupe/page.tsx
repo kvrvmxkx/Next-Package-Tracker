@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Search, Eye, Layers } from "lucide-react";
+import { ArrowLeft, Plus, Search, Eye, Layers, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { getDestinationText } from "@/lib/utils";
 
@@ -23,13 +23,25 @@ export default function GroupesPage() {
   const [groupes, setGroupes] = useState<GroupeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [deletingCode, setDeletingCode] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchGroupes = () => {
+    setLoading(true);
     fetch("/api/groupes")
       .then((r) => r.json())
       .then((data) => setGroupes(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchGroupes(); }, []);
+
+  async function handleDelete(code: string) {
+    if (!confirm(`Supprimer l'envoi groupé ${code} et tous ses colis ?`)) return;
+    setDeletingCode(code);
+    await fetch(`/api/groupes/${code}`, { method: "DELETE" });
+    setDeletingCode(null);
+    fetchGroupes();
+  }
 
   const filtered = groupes.filter(
     (g) =>
@@ -129,11 +141,16 @@ export default function GroupesPage() {
                 </div>
               </div>
 
-              <Button variant="ghost" size="icon" asChild>
-                <Link href={`/colis/groupe/${g.code}`}>
-                  <Eye className="w-4 h-4" />
-                </Link>
-              </Button>
+              <div className="flex gap-1 shrink-0">
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href={`/colis/groupe/${g.code}`}>
+                    <Eye className="w-4 h-4" />
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(g.code)} disabled={deletingCode === g.code}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
             </div>
           ))
         )}

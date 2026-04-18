@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import StatusBadge from "@/components/status-badge";
 import {
   ArrowLeft,
@@ -13,9 +17,13 @@ import {
   User,
   Eye,
   ExternalLink,
+  Pencil,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
+import { toast } from "sonner";
 
 type SousColis = {
   id: string;
@@ -49,15 +57,70 @@ type Groupe = {
 
 export default function GroupeDetailPage() {
   const { code } = useParams<{ code: string }>();
+  const router = useRouter();
   const [groupe, setGroupe] = useState<Groupe | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    expediteurEstFournisseur: false,
+    expediteurNom: "",
+    expediteurPhone: "",
+    notes: "",
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const fetchGroupe = () => {
+    setLoading(true);
     fetch(`/api/groupes/${code}`)
       .then((r) => r.json())
       .then(setGroupe)
       .finally(() => setLoading(false));
-  }, [code]);
+  };
+
+  useEffect(() => { fetchGroupe(); }, [code]);
+
+  function openEdit() {
+    if (!groupe) return;
+    setEditForm({
+      expediteurEstFournisseur: groupe.expediteurEstFournisseur,
+      expediteurNom: groupe.expediteurNom,
+      expediteurPhone: groupe.expediteurPhone,
+      notes: groupe.notes ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    setEditLoading(true);
+    const res = await fetch(`/api/groupes/${code}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    if (res.ok) {
+      toast.success("Groupe mis à jour", { position: "bottom-right" });
+      setEditOpen(false);
+      fetchGroupe();
+    } else {
+      toast.error("Erreur lors de la mise à jour", { position: "bottom-right" });
+    }
+    setEditLoading(false);
+  }
+
+  async function deleteGroupe() {
+    if (!confirm(`Supprimer le groupe ${code} et tous ses colis ?`)) return;
+    setDeleteLoading(true);
+    const res = await fetch(`/api/groupes/${code}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Groupe supprimé", { position: "bottom-right" });
+      router.push("/colis/groupe");
+    } else {
+      toast.error("Erreur lors de la suppression", { position: "bottom-right" });
+      setDeleteLoading(false);
+    }
+  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
@@ -101,13 +164,19 @@ export default function GroupeDetailPage() {
             {getDestinationText(groupe.destination)}
           </Badge>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {new Date(groupe.createdAt).toLocaleDateString("fr-FR", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {new Date(groupe.createdAt).toLocaleDateString("fr-FR", {
+              day: "2-digit", month: "short", year: "numeric",
+            })}
+          </span>
+          <Button variant="outline" size="icon" onClick={openEdit}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={deleteGroupe} disabled={deleteLoading}>
+            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+          </Button>
+        </div>
       </div>
 
       {/* Infos envoi */}
@@ -224,6 +293,49 @@ export default function GroupeDetailPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier le groupe {groupe.code}</DialogTitle>
+          </DialogHeader>
+          <FieldGroup className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={editForm.expediteurEstFournisseur}
+                onCheckedChange={(v) => setEditForm((f) => ({ ...f, expediteurEstFournisseur: v }))}
+              />
+              <span className="text-sm">Expéditeur = Fournisseur</span>
+            </div>
+            {!editForm.expediteurEstFournisseur && (
+              <>
+                <Field>
+                  <FieldLabel>Nom expéditeur</FieldLabel>
+                  <Input value={editForm.expediteurNom}
+                    onChange={(e) => setEditForm((f) => ({ ...f, expediteurNom: e.target.value }))} />
+                </Field>
+                <Field>
+                  <FieldLabel>Tél. expéditeur</FieldLabel>
+                  <Input value={editForm.expediteurPhone}
+                    onChange={(e) => setEditForm((f) => ({ ...f, expediteurPhone: e.target.value }))} />
+                </Field>
+              </>
+            )}
+            <Field>
+              <FieldLabel>Notes</FieldLabel>
+              <Input value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+            </Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+              <Button onClick={saveEdit} disabled={editLoading}>
+                {editLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Enregistrer
+              </Button>
+            </div>
+          </FieldGroup>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
