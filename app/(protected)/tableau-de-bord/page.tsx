@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Roles } from "@/lib/enums";
 import DashboardSuperAdmin from "@/components/dashboard/dashboard-super-admin";
