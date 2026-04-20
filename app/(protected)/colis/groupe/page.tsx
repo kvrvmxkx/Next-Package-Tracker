@@ -36,7 +36,7 @@ export default function GroupesPage() {
   useEffect(() => { fetchGroupes(); }, []);
 
   async function handleDelete(code: string) {
-    if (!confirm(`Supprimer l'envoi groupé ${code} et tous ses colis ?`)) return;
+    if (!confirm(`Supprimer le groupage ${code} et tous ses colis ?`)) return;
     setDeletingCode(code);
     await fetch(`/api/groupes/${code}`, { method: "DELETE" });
     setDeletingCode(null);
@@ -60,13 +60,13 @@ export default function GroupesPage() {
             </Link>
           </Button>
           <h1 className="text-sm font-bold uppercase tracking-[0.2em]">
-            Envois groupés
+            Groupages
           </h1>
         </div>
         <Button asChild>
           <Link href="/colis/groupe/ajouter">
             <Plus className="w-4 h-4 mr-1" />
-            Nouvel envoi groupé
+            Nouveau groupage
           </Link>
         </Button>
       </div>
@@ -93,7 +93,7 @@ export default function GroupesPage() {
           ))
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-[10px] uppercase tracking-widest text-muted-foreground">
-            {search ? "Aucun résultat" : "Aucun envoi groupé enregistré"}
+            {search ? "Aucun résultat" : "Aucun groupage enregistré"}
           </div>
         ) : (
           filtered.map((g) => (
@@ -157,7 +157,7 @@ export default function GroupesPage() {
       </div>
 
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {filtered.length} envoi{filtered.length > 1 ? "s" : ""}
+        {filtered.length} groupage{filtered.length > 1 ? "s" : ""}
         {filtered.length !== groupes.length ? ` sur ${groupes.length}` : ""}
       </p>
     </div>

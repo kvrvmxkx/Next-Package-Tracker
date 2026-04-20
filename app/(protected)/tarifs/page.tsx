@@ -28,7 +28,8 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, PlusCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Pencil, Trash2, PlusCircle, Zap } from "lucide-react";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -40,6 +41,7 @@ import type { TarifWithTranches } from "@/lib/types";
 const tarifFormSchema = z.object({
   nom: z.string().min(2, "Le nom est requis"),
   destination: z.enum(["MALI", "COTE_DIVOIRE"]),
+  express: z.boolean().default(false),
   tranches: z.array(
     z.object({
       poidsMin: z.string(),
@@ -60,6 +62,7 @@ export default function TarifsPage() {
     defaultValues: {
       nom: "",
       destination: "MALI",
+      express: false,
       tranches: [{ poidsMin: "0", poidsMax: "", prixParKg: "" }],
     },
   });
@@ -84,6 +87,7 @@ export default function TarifsPage() {
     form.reset({
       nom: tarif.nom,
       destination: tarif.destination as "MALI" | "COTE_DIVOIRE",
+      express: tarif.express ?? false,
       tranches: tarif.tranches.map((t) => ({
         poidsMin: String(t.poidsMin),
         poidsMax: t.poidsMax ? String(t.poidsMax) : "",
@@ -95,7 +99,9 @@ export default function TarifsPage() {
 
   async function onSubmit(values: z.infer<typeof tarifFormSchema>) {
     const payload = {
-      ...values,
+      nom: values.nom,
+      destination: values.destination,
+      express: values.express,
       tranches: values.tranches.map((t) => ({
         poidsMin: parseFloat(t.poidsMin),
         poidsMax: t.poidsMax ? parseFloat(t.poidsMax) : null,
@@ -143,11 +149,17 @@ export default function TarifsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {tarifs.map((tarif) => (
-            <Card key={tarif.id}>
+            <Card key={tarif.id} className={tarif.express ? "border-orange-500 border-2" : ""}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{tarif.nom}</CardTitle>
                   <div className="flex items-center gap-2">
+                    {tarif.express && <Zap className="w-4 h-4 text-orange-500" />}
+                    <CardTitle className="text-base">{tarif.nom}</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {tarif.express && (
+                      <Badge className="bg-orange-500 text-white border-orange-500">Express</Badge>
+                    )}
                     <Badge
                       variant={
                         tarif.destination === "MALI" ? "info" : "warning"
@@ -259,6 +271,25 @@ export default function TarifsPage() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="express"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-orange-500" />
+                        <FieldLabel className="!mb-0">Tarif Express</FieldLabel>
+                      </div>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ce tarif est automatiquement sélectionné pour les envois express.
+                    </p>
                   </Field>
                 )}
               />

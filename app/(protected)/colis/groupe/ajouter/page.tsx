@@ -29,11 +29,13 @@ import {
   Store,
   Users,
   Package,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
 import { getFormSettings, type FormSettings } from "@/lib/form-settings";
+import { Switch } from "@/components/ui/switch";
 
 // ─── Schema ──────────────────────────────────────────────────
 
@@ -44,13 +46,14 @@ const sousColis = z.object({
   destinataireAdresse: z.string().optional(),
   description: z.string().optional(),
   poids: z.string().min(1, "Poids requis"),
-  tarifId: z.string().min(1, "Tarif requis"),
+  tarifId: z.string().optional(),
   avance: z.string().optional(),
 });
 
 const groupeSchema = z
   .object({
     destination: z.nativeEnum(Destination, { message: "Destination invalide" }),
+    express: z.boolean().default(false),
     expediteurEstFournisseur: z.boolean(),
     expediteurNom: z.string().optional(),
     expediteurPhone: z.string().optional(),
@@ -73,6 +76,17 @@ const groupeSchema = z
           path: ["expediteurPhone"],
         });
       }
+    }
+    if (!data.express) {
+      data.colis.forEach((item, index) => {
+        if (!item.tarifId || item.tarifId.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Tarif requis",
+            path: ["colis", index, "tarifId"],
+          });
+        }
+      });
     }
   });
 
@@ -110,6 +124,7 @@ export default function AjouterGroupePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [estFournisseur, setEstFournisseur] = useState(false);
   const [fs, setFs] = useState<FormSettings | null>(null);
+  const [expressTarifId, setExpressTarifId] = useState<string | null>(null);
 
   useEffect(() => { setFs(getFormSettings()); }, []);
   const [codeGroupe, setCodeGroupe] = useState<string | null>(null);
@@ -122,6 +137,7 @@ export default function AjouterGroupePage() {
         (session?.user as any)?.role === "AGENT_CI"
           ? Destination.COTE_DIVOIRE
           : Destination.MALI,
+      express: false,
       expediteurEstFournisseur: false,
       expediteurNom: "",
       expediteurPhone: "",
@@ -147,6 +163,7 @@ export default function AjouterGroupePage() {
   });
 
   const destination = form.watch("destination");
+  const groupExpress = form.watch("express");
   const colisValues = form.watch("colis");
 
   // Charger les tarifs
@@ -169,18 +186,26 @@ export default function AjouterGroupePage() {
   }, []);
 
   const tarifsFiltered = tarifs.filter(
-    (t) => t!.active && t!.destination === destination
+    (t) => t!.active && t!.destination === destination && !t!.express
   );
+  const expressTarif = tarifs.find(
+    (t) => t!.active && t!.express && t!.destination === destination
+  ) ?? null;
 
   // Pré-sélectionner automatiquement si un seul tarif disponible
   useEffect(() => {
-    if (tarifsFiltered.length === 1) {
+    if (tarifsFiltered.length === 1 && !groupExpress) {
       const id = String(tarifsFiltered[0]!.id);
       fields.forEach((_, index) => {
         form.setValue(`colis.${index}.tarifId`, id);
       });
     }
-  }, [tarifsFiltered.length, destination]);
+  }, [tarifsFiltered.length, destination, groupExpress]);
+
+  // Sync expressTarifId when destination or tarifs change
+  useEffect(() => {
+    setExpressTarifId(expressTarif ? String(expressTarif.id) : null);
+  }, [expressTarif?.id]);
 
   async function onSubmit(values: GroupeFormValues) {
     if (!codeGroupe) {
@@ -192,10 +217,16 @@ export default function AjouterGroupePage() {
       // Calculer le prixTotal de chaque sous-colis
       const colisWithPrix = values.colis.map((item) => {
         const p = parseFloat(item.poids || "0");
-        const tarif = tarifs.find((t) => String(t!.id) === item.tarifId) ?? null;
-        const prixTotal = tarif ? calculatePrixTotal(p, tarif!.tranches) : 0;
+        const prixTotal = values.express && expressTarif
+          ? calculatePrixTotal(p, expressTarif.tranches)
+          : (() => {
+              const tarif = tarifs.find((t) => String(t!.id) === item.tarifId) ?? null;
+              return tarif ? calculatePrixTotal(p, tarif!.tranches) : 0;
+            })();
         return {
           ...item,
+          express: values.express,
+          tarifId: values.express && expressTarif ? String(expressTarif.id) : item.tarifId,
           poids: p,
           prixTotal,
           avance: parseFloat(item.avance || "0"),
@@ -221,7 +252,7 @@ export default function AjouterGroupePage() {
         throw new Error(err.error || "Erreur lors de l'enregistrement");
       }
 
-      toast.success(`Envoi groupé ${codeGroupe} enregistré (${values.colis.length} colis)`, {
+      toast.success(`Groupage ${codeGroupe} enregistré (${values.colis.length} colis)`, {
         position: "bottom-right",
       });
       router.push("/colis");
@@ -245,7 +276,7 @@ export default function AjouterGroupePage() {
         </Button>
         <div className="flex items-center gap-3 flex-1">
           <h1 className="text-sm font-bold uppercase tracking-[0.2em]">
-            Envoi groupé
+            Groupage
           </h1>
           {/* Code CF — visible avant insertion */}
           <div className="flex items-center gap-1.5">
@@ -296,6 +327,30 @@ export default function AjouterGroupePage() {
                   </Field>
                 )}
               />
+
+              <Controller
+                name="express"
+                control={form.control}
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(!field.value)}
+                    className={`flex items-center gap-2 px-3 py-2 border text-sm font-medium transition-colors w-full ${
+                      field.value
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Zap className="w-4 h-4" />
+                    {field.value
+                      ? expressTarif
+                        ? `Express — ${expressTarif.tranches[0]?.prixParKg?.toLocaleString("fr-FR") ?? "?"} XOF/kg (tout le groupage)`
+                        : "Express — tarif non configuré"
+                      : "Express (tout le groupage)"}
+                  </button>
+                )}
+              />
+
               {fs?.afficherNotes !== false && (
                 <Controller
                   name="notes"
@@ -416,7 +471,7 @@ export default function AjouterGroupePage() {
                     destinataireAdresse: "",
                     description: "",
                     poids: "",
-                    tarifId: tarifsFiltered.length === 1 ? String(tarifsFiltered[0]!.id) : "",
+                    tarifId: !groupExpress && tarifsFiltered.length === 1 ? String(tarifsFiltered[0]!.id) : "",
                     avance: "0",
                   })
                 }
@@ -523,41 +578,53 @@ export default function AjouterGroupePage() {
                       </Field>
                     )}
                   />
-                  <Controller
-                    name={`colis.${index}.tarifId`}
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel>Tarif *</FieldLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choisir" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tarifsFiltered.length === 0 ? (
-                              <SelectItem value="none" disabled>
-                                Aucun tarif
-                              </SelectItem>
-                            ) : (
-                              tarifsFiltered.map((t) => (
-                                <SelectItem key={t!.id} value={String(t!.id)}>
-                                  {t!.nom}
+                  {groupExpress ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 text-xs font-bold uppercase tracking-wider dark:bg-orange-950/30 dark:border-orange-700 dark:text-orange-400">
+                      <Zap className="w-3.5 h-3.5" />
+                      Express
+                      {colisValues[index]?.poids && expressTarif ? (
+                        <span className="ml-auto font-semibold">
+                          {amountFormatXOF(calculatePrixTotal(parseFloat(colisValues[index].poids || "0"), expressTarif.tranches))}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <Controller
+                      name={`colis.${index}.tarifId`}
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel>Tarif *</FieldLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choisir" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tarifsFiltered.length === 0 ? (
+                                <SelectItem value="none" disabled>
+                                  Aucun tarif
                                 </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                        <PrixColis
-                          poids={colisValues[index]?.poids ?? ""}
-                          tarifId={colisValues[index]?.tarifId}
-                          tarifs={tarifs}
-                        />
-                      </Field>
-                    )}
-                  />
+                              ) : (
+                                tarifsFiltered.map((t) => (
+                                  <SelectItem key={t!.id} value={String(t!.id)}>
+                                    {t!.nom}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                          <PrixColis
+                            poids={colisValues[index]?.poids ?? ""}
+                            tarifId={colisValues[index]?.tarifId}
+                            tarifs={tarifs}
+                          />
+                        </Field>
+                      )}
+                    />
+                  )}
                   {fs?.afficherDescription !== false && (
                     <Controller
                       name={`colis.${index}.description`}
@@ -598,7 +665,7 @@ export default function AjouterGroupePage() {
           </Button>
           <Button type="submit" disabled={isLoading || !codeGroupe}>
             {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            Enregistrer l&apos;envoi groupé
+            Enregistrer le groupage
           </Button>
         </div>
       </form>

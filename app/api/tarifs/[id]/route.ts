@@ -16,7 +16,7 @@ export async function PUT(
   }
 
   try {
-    const { nom, destination, tranches } = await req.json();
+    const { nom, destination, express, tranches } = await req.json();
 
     // Delete existing tranches, recreate
     await prisma.trancheTarif.deleteMany({ where: { tarifId: parseInt(id) } });
@@ -26,6 +26,7 @@ export async function PUT(
       data: {
         nom,
         destination,
+        express: !!express,
         tranches: {
           create: tranches.map((t: { poidsMin: number; poidsMax: number | null; prixParKg: number }) => ({
             poidsMin: t.poidsMin,

@@ -176,6 +176,9 @@ model Colis {
   tarifId Int?
   tarif   Tarif? @relation(fields: [tarifId], references: [id])
 
+  // Express
+  express Boolean @default(false)
+
   // Lien public de suivi
   tokenPublic String @unique @default(cuid())
 
@@ -248,6 +251,7 @@ model Tarif {
   nom         String
   destination String // "MALI" | "COTE_DIVOIRE"
   active      Boolean @default(true)
+  express     Boolean @default(false)
 
   tranches TrancheTarif[]
   colis    Colis[]

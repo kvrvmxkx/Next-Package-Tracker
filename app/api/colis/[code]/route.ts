@@ -68,6 +68,7 @@ export async function PUT(
         destinataireVille: body.destinataireVille,
         destinataireAdresse: body.destinataireAdresse,
         notes: body.notes,
+        express: body.express !== undefined ? !!body.express : undefined,
       },
     });
 

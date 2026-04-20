@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       tarifId,
       agenceOrigineId,
       agenceDestinationId,
+      express,
     } = await request.json();
 
     if (!poids || !destination || !destinataireNom || !destinatairePhone) {
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
         solde,
         avancePaye: avanceVal > 0,
         soldePaye:  false,
+        express:    !!express,
         notes,
         tarifId:              tarifId             ? parseInt(tarifId)              : null,
         agenceOrigineId:      agenceOrigineId      ? parseInt(agenceOrigineId)      : null,

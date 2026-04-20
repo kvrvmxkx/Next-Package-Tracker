@@ -61,7 +61,7 @@ const items: MenuItem[] = [
     ],
   },
   {
-    title: "Envois groupés",
+    title: "Groupages",
     url: "/colis/groupe",
     icon: Layers,
     roles: [

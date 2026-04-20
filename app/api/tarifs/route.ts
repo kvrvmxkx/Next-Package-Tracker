@@ -25,12 +25,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { nom, destination, tranches } = await req.json();
+    const { nom, destination, express, tranches } = await req.json();
 
     const tarif = await prisma.tarif.create({
       data: {
         nom,
         destination,
+        express: !!express,
         tranches: {
           create: tranches.map((t: { poidsMin: number; poidsMax: number | null; prixParKg: number }) => ({
             poidsMin: t.poidsMin,

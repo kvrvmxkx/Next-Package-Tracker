@@ -58,12 +58,14 @@ export default function AjouterColisPage() {
       avance: "0",
       notes: "",
       tarifId: "",
+      express: false,
     },
   });
 
   const poids = parseFloat(form.watch("poids") || "0");
   const tarifId = form.watch("tarifId");
   const destination = form.watch("destination");
+  const express = form.watch("express");
 
   // Load tarifs on mount
   useEffect(() => {
@@ -72,32 +74,37 @@ export default function AjouterColisPage() {
       .then((data) => setTarifs(data));
   }, []);
 
-  // Recalculate price when poids or tarif changes
-  useEffect(() => {
-    if (!tarifId || !poids) {
-      setPrixCalcule(0);
-      return;
-    }
-    const tarif = tarifs.find((t) => String(t!.id) === tarifId) ?? null;
-    if (!tarif) {
-      setPrixCalcule(0);
-      return;
-    }
-    const prix = calculatePrixTotal(poids, tarif!.tranches);
-    setPrixCalcule(prix);
-  }, [poids, tarifId, tarifs]);
-
   // Filter tarifs by destination
   const tarifsFiltered = tarifs.filter(
-    (t) => t!.active && t!.destination === destination
+    (t) => t!.active && t!.destination === destination && !t!.express
   );
+  const expressTarif = tarifs.find(
+    (t) => t!.active && t!.express && t!.destination === destination
+  ) ?? null;
 
   // Pré-sélectionner automatiquement si un seul tarif disponible
   useEffect(() => {
-    if (tarifsFiltered.length === 1) {
+    if (tarifsFiltered.length === 1 && !express) {
       form.setValue("tarifId", String(tarifsFiltered[0]!.id));
     }
-  }, [tarifsFiltered.length, destination]);
+  }, [tarifsFiltered.length, destination, express]);
+
+  // Auto-select express tarif when express=true
+  useEffect(() => {
+    if (express && expressTarif) {
+      form.setValue("tarifId", String(expressTarif.id));
+    }
+  }, [express, expressTarif?.id]);
+
+  // Recalculate price when poids or tarif changes
+  useEffect(() => {
+    if (!poids) { setPrixCalcule(0); return; }
+    const resolvedTarifId = express && expressTarif ? String(expressTarif.id) : tarifId;
+    if (!resolvedTarifId) { setPrixCalcule(0); return; }
+    const tarif = tarifs.find((t) => String(t!.id) === resolvedTarifId) ?? null;
+    if (!tarif) { setPrixCalcule(0); return; }
+    setPrixCalcule(calculatePrixTotal(poids, tarif!.tranches));
+  }, [poids, tarifId, tarifs, express, expressTarif]);
 
   async function onSubmit(values: z.infer<typeof colisSchema>) {
     setIsLoading(true);
@@ -229,41 +236,73 @@ export default function AjouterColisPage() {
                 />
               </div>
 
+              {/* Express toggle */}
               <Controller
-                name="tarifId"
+                name="express"
                 control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>Tarif *</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisir un tarif" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tarifsFiltered.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            Aucun tarif pour cette destination
-                          </SelectItem>
-                        ) : (
-                          tarifsFiltered.map((t) => (
-                            <SelectItem key={t!.id} value={String(t!.id)}>
-                              {t!.nom}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                    {tarifsFiltered.length === 0 && !fieldState.invalid && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Aucun tarif actif pour cette destination.
-                      </p>
-                    )}
-                  </Field>
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      field.onChange(!field.value);
+                      if (field.value) {
+                        form.setValue("tarifId", "");
+                        form.clearErrors("tarifId");
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 border text-sm font-medium transition-colors w-full ${
+                      field.value
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="text-base">⚡</span>
+                    {field.value
+                      ? expressTarif
+                        ? `Express — ${expressTarif.tranches[0]?.prixParKg?.toLocaleString("fr-FR") ?? "?"} XOF/kg`
+                        : "Express — tarif non configuré"
+                      : "Express"}
+                  </button>
                 )}
               />
+
+              {!express && (
+                <Controller
+                  name="tarifId"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel>Tarif *</FieldLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir un tarif" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tarifsFiltered.length === 0 ? (
+                            <SelectItem value="none" disabled>
+                              Aucun tarif pour cette destination
+                            </SelectItem>
+                          ) : (
+                            tarifsFiltered.map((t) => (
+                              <SelectItem key={t!.id} value={String(t!.id)}>
+                                {t!.nom}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                      {tarifsFiltered.length === 0 && !fieldState.invalid && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Aucun tarif actif pour cette destination.
+                        </p>
+                      )}
+                    </Field>
+                  )}
+                />
+              )}
 
               {prixCalcule > 0 && (
                 <div className="bg-muted/50 border border-border p-3 text-sm space-y-1">

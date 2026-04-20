@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
           avance,
           tarifId,
           nombreColis,
+          express,
         } = item;
 
         const avanceVal    = parseFloat(avance ?? 0);
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
             solde,
             avancePaye: avanceVal > 0,
             soldePaye: false,
+            express: !!express,
             notes,
             tarifId: tarifId ? parseInt(tarifId) : null,
             agentId,

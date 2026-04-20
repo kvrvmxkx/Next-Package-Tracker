@@ -44,6 +44,8 @@ export default function ColisPage() {
   const { colis, loading, deleteColis } = useColis();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("ALL");
+  const [filterDest, setFilterDest] = useState("ALL");
+  const [filterExpress, setFilterExpress] = useState(false);
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -63,14 +65,16 @@ export default function ColisPage() {
       c.destinataireNom.toLowerCase().includes(search.toLowerCase()) ||
       c.destinatairePhone.includes(search);
     const matchStatut = filterStatut === "ALL" || c.statut === filterStatut;
-    return matchSearch && matchStatut;
+    const matchDest = filterDest === "ALL" || c.destination === filterDest;
+    const matchExpress = !filterExpress || (c as any).express === true;
+    return matchSearch && matchStatut && matchDest && matchExpress;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, filterStatut]);
+  useEffect(() => { setPage(1); }, [search, filterStatut, filterDest, filterExpress]);
 
   return (
     <div className="space-y-4">
@@ -80,7 +84,7 @@ export default function ColisPage() {
           <Button variant="outline" asChild>
             <Link href="/colis/groupe">
               <Layers className="w-4 h-4 mr-1" />
-              Envois groupés
+              Groupages
             </Link>
           </Button>
           <Button asChild>
@@ -114,6 +118,27 @@ export default function ColisPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterDest} onValueChange={setFilterDest}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Toutes destinations</SelectItem>
+            <SelectItem value="MALI">Mali</SelectItem>
+            <SelectItem value="COTE_DIVOIRE">Côte d&apos;Ivoire</SelectItem>
+          </SelectContent>
+        </Select>
+        <button
+          type="button"
+          onClick={() => setFilterExpress((v) => !v)}
+          className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
+            filterExpress
+              ? "bg-orange-500 text-white border-orange-500"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Express
+        </button>
       </div>
 
       {/* Cards — mobile only */}

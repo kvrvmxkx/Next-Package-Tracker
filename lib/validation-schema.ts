@@ -7,7 +7,7 @@ export const colisSchema = z.object({
   poids: z.string().min(1, "Poids requis"),
   nombreColis: z.string().optional(),
   destination: z.nativeEnum(Destination, { message: "Destination invalide" }),
-  tarifId: z.string().min(1, "Tarif requis"),
+  tarifId: z.string().optional(),
   expediteurEstFournisseur: z.boolean(),
   expediteurNom: z.string().optional(),
   expediteurPhone: z.string().optional(),
@@ -17,22 +17,18 @@ export const colisSchema = z.object({
   destinataireAdresse: z.string().optional(),
   avance: z.string().optional(),
   notes: z.string().optional(),
+  express: z.boolean().default(false),
 }).superRefine((data, ctx) => {
   if (!data.expediteurEstFournisseur) {
     if (!data.expediteurNom || data.expediteurNom.length < 2) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Nom expéditeur requis",
-        path: ["expediteurNom"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Nom expéditeur requis", path: ["expediteurNom"] });
     }
     if (!data.expediteurPhone || data.expediteurPhone.length < 8) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Téléphone expéditeur requis",
-        path: ["expediteurPhone"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Téléphone expéditeur requis", path: ["expediteurPhone"] });
     }
+  }
+  if (!data.express && (!data.tarifId || data.tarifId.length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tarif requis", path: ["tarifId"] });
   }
 });
 
