@@ -17,7 +17,7 @@ export const colisSchema = z.object({
   destinataireAdresse: z.string().optional(),
   avance: z.string().optional(),
   notes: z.string().optional(),
-  express: z.boolean().default(false),
+  express: z.boolean(),
 }).superRefine((data, ctx) => {
   if (!data.expediteurEstFournisseur) {
     if (!data.expediteurNom || data.expediteurNom.length < 2) {

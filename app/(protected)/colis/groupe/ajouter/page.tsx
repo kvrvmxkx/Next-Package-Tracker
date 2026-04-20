@@ -53,7 +53,7 @@ const sousColis = z.object({
 const groupeSchema = z
   .object({
     destination: z.nativeEnum(Destination, { message: "Destination invalide" }),
-    express: z.boolean().default(false),
+    express: z.boolean(),
     expediteurEstFournisseur: z.boolean(),
     expediteurNom: z.string().optional(),
     expediteurPhone: z.string().optional(),

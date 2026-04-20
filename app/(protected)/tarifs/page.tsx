@@ -41,7 +41,7 @@ import type { TarifWithTranches } from "@/lib/types";
 const tarifFormSchema = z.object({
   nom: z.string().min(2, "Le nom est requis"),
   destination: z.enum(["MALI", "COTE_DIVOIRE"]),
-  express: z.boolean().default(false),
+  express: z.boolean(),
   tranches: z.array(
     z.object({
       poidsMin: z.string(),
