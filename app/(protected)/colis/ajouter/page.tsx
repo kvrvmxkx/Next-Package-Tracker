@@ -21,7 +21,7 @@ import { colisSchema } from "@/lib/validation-schema";
 import { Destination } from "@/lib/enums";
 import { calculatePrixTotal, amountFormatXOF } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Package, Store } from "lucide-react";
+import { ArrowLeft, Loader2, Package, Store, Save } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
@@ -521,7 +521,7 @@ export default function AjouterColisPage() {
             <Link href="/colis">Annuler</Link>
           </Button>
           <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Enregistrer le colis
           </Button>
         </div>

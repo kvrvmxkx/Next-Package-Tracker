@@ -30,6 +30,7 @@ import {
   Users,
   Package,
   Zap,
+  Save,
 } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
@@ -664,7 +665,7 @@ export default function AjouterGroupePage() {
             <Link href="/colis">Annuler</Link>
           </Button>
           <Button type="submit" disabled={isLoading || !codeGroupe}>
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Enregistrer le groupage
           </Button>
         </div>

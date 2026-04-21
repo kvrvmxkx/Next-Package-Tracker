@@ -28,7 +28,7 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { PasswordInput } from "@/components/password-input";
-import { Plus, Pencil, ToggleLeft, ToggleRight, Search } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Loader2, Check } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -49,6 +49,7 @@ export default function UtilisateursPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
@@ -61,6 +62,7 @@ export default function UtilisateursPage() {
       role: Roles.AGENT_CHINE,
     },
   });
+  const { isSubmitting } = form.formState;
 
   const filtered = users.filter(
     (u) =>
@@ -197,12 +199,17 @@ export default function UtilisateursPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        disabled={togglingId === u.id}
                         onClick={async () => {
+                          setTogglingId(u.id);
                           await toggleActive(u.id, !u.active);
                           refetch();
+                          setTogglingId(null);
                         }}
                       >
-                        {u.active ? (
+                        {togglingId === u.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : u.active ? (
                           <ToggleRight className="w-4 h-4 text-green-600" />
                         ) : (
                           <ToggleLeft className="w-4 h-4 text-muted-foreground" />
@@ -348,7 +355,8 @@ export default function UtilisateursPage() {
                 >
                   Annuler
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : editId ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   {editId ? "Mettre à jour" : "Créer"}
                 </Button>
               </div>

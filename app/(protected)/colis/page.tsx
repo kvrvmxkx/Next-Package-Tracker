@@ -19,12 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/status-badge";
-import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
 import { StatutColis } from "@/lib/enums";
+import { toast } from "sonner";
 
 const STATUTS = [
   { value: "ALL", label: "Tous les statuts" },
@@ -38,16 +46,60 @@ const STATUTS = [
   { value: StatutColis.ANNULE, label: "Annulé" },
 ];
 
+const STATUTS_TRANSITION = [
+  { value: StatutColis.ENREGISTRE,    label: "Enregistré" },
+  { value: StatutColis.EN_COURS_ENVOI, label: "En cours d'envoi" },
+  { value: StatutColis.EN_TRANSIT,    label: "En transit" },
+  { value: StatutColis.ARRIVE_AGENCE, label: "Arrivé agence" },
+  { value: StatutColis.PRET_RETIRER,  label: "Prêt à retirer" },
+];
+
 const PER_PAGE = 10;
 
 export default function ColisPage() {
-  const { colis, loading, deleteColis } = useColis();
+  const { colis, loading, deleteColis, refetch } = useColis();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("ALL");
   const [filterDest, setFilterDest] = useState("ALL");
   const [filterExpress, setFilterExpress] = useState(false);
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Bulk statut
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkFrom, setBulkFrom] = useState(StatutColis.ENREGISTRE);
+  const [bulkTo, setBulkTo] = useState(StatutColis.EN_COURS_ENVOI);
+  const [bulkDest, setBulkDest] = useState("ALL");
+  const [bulkCount, setBulkCount] = useState<number | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    setBulkCount(null);
+    fetch(`/api/colis/bulk-statut?fromStatut=${bulkFrom}&destination=${bulkDest}`)
+      .then((r) => r.json())
+      .then((d) => setBulkCount(d.count));
+  }, [bulkOpen, bulkFrom, bulkDest]);
+
+  async function handleBulkStatut() {
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/colis/bulk-statut", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromStatut: bulkFrom, toStatut: bulkTo, destination: bulkDest }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`${data.count} colis mis à jour`, { position: "bottom-right" });
+      setBulkOpen(false);
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur", { position: "bottom-right" });
+    } finally {
+      setBulkLoading(false);
+    }
+  }
 
   async function handleDelete(code: string) {
     if (!confirm(`Supprimer le colis ${code} ?`)) return;
@@ -86,6 +138,10 @@ export default function ColisPage() {
               <Layers className="w-4 h-4 mr-1" />
               Groupages
             </Link>
+          </Button>
+          <Button variant="outline" onClick={() => setBulkOpen(true)}>
+            <ArrowRightLeft className="w-4 h-4 mr-1" />
+            Changer statut
           </Button>
           <Button asChild>
             <Link href="/colis/ajouter">
@@ -341,6 +397,94 @@ export default function ColisPage() {
           </div>
         )}
       </div>
+
+      {/* Dialog — changement de statut groupé */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4" />
+              Changement de statut groupé
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Colis non-express uniquement
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-medium mb-1.5">Destination</p>
+                <Select value={bulkDest} onValueChange={setBulkDest}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Toutes destinations</SelectItem>
+                    <SelectItem value="MALI">Mali</SelectItem>
+                    <SelectItem value="COTE_DIVOIRE">Côte d&apos;Ivoire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div>
+                  <p className="text-xs font-medium mb-1.5">Statut actuel</p>
+                  <Select value={bulkFrom} onValueChange={(v) => setBulkFrom(v as StatutColis)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUTS_TRANSITION.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ArrowRightLeft className="w-4 h-4 text-muted-foreground mt-5" />
+                <div>
+                  <p className="text-xs font-medium mb-1.5">Nouveau statut</p>
+                  <Select value={bulkTo} onValueChange={(v) => setBulkTo(v as StatutColis)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUTS_TRANSITION.filter((s) => s.value !== bulkFrom).map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 border border-border px-4 py-3 text-sm">
+              {bulkCount === null ? (
+                <span className="text-muted-foreground">Calcul en cours…</span>
+              ) : (
+                <span>
+                  <span className="font-bold text-foreground">{bulkCount}</span>
+                  {" "}colis concerné{bulkCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleBulkStatut}
+              disabled={bulkLoading || bulkCount === 0 || bulkCount === null || bulkFrom === bulkTo}
+            >
+              {bulkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+              Appliquer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

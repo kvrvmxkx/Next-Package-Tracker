@@ -29,7 +29,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, PlusCircle, Zap } from "lucide-react";
+import { Plus, Pencil, Trash2, PlusCircle, Zap, Loader2, Check } from "lucide-react";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -56,6 +56,7 @@ export default function TarifsPage() {
     useTarifs();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const form = useForm<z.infer<typeof tarifFormSchema>>({
     resolver: zodResolver(tarifFormSchema),
@@ -66,6 +67,7 @@ export default function TarifsPage() {
       tranches: [{ poidsMin: "0", poidsMax: "", prixParKg: "" }],
     },
   });
+  const { isSubmitting } = form.formState;
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -77,6 +79,7 @@ export default function TarifsPage() {
     form.reset({
       nom: "",
       destination: "MALI",
+      express: false,
       tranches: [{ poidsMin: "0", poidsMax: "", prixParKg: "" }],
     });
     setOpen(true);
@@ -211,16 +214,21 @@ export default function TarifsPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={deletingId === tarif.id}
                     onClick={async () => {
-                      if (
-                        confirm("Supprimer ce tarif ?")
-                      ) {
+                      if (confirm("Supprimer ce tarif ?")) {
+                        setDeletingId(tarif.id);
                         await deleteTarif(tarif.id);
                         refetch();
+                        setDeletingId(null);
                       }
                     }}
                   >
-                    <Trash2 className="w-3 h-3 mr-1 text-destructive" />
+                    {deletingId === tarif.id ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3 mr-1 text-destructive" />
+                    )}
                     Supprimer
                   </Button>
                 </div>
@@ -363,7 +371,8 @@ export default function TarifsPage() {
                 >
                   Annuler
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : editId ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   {editId ? "Mettre à jour" : "Créer"}
                 </Button>
               </div>
