@@ -648,7 +648,6 @@ export default function AjouterGroupePage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="500"
                           placeholder="0"
                         />
                       </Field>
