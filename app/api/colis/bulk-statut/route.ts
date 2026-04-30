@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { sendSMSBulk } from "@/lib/twilio";
+import { getStatutText } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -42,6 +44,23 @@ export async function POST(req: NextRequest) {
           agentId: session.user.id,
         })),
       });
+
+      // SMS fire & forget — envoi séquentiel pour respecter le rate limit Twilio
+      prisma.colis
+        .findMany({
+          where: { id: { in: updated.map((c) => c.id) } },
+          select: { code: true, destinatairePhone: true, tokenPublic: true, destination: true },
+        })
+        .then((colis) => {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+          const messages = colis.map((c) => ({
+            to: c.destinatairePhone,
+            body: `Votre colis ${c.code} est maintenant: ${getStatutText(toStatut)}. Suivi: ${appUrl}/suivi/${c.tokenPublic}`,
+            country: c.destination === "COTE_DIVOIRE" ? ("CI" as const) : ("ML" as const),
+          }));
+          return sendSMSBulk(messages);
+        })
+        .catch((err) => console.error("[Twilio] Erreur envoi SMS groupé:", err));
     }
 
     return NextResponse.json({ count });

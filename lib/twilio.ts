@@ -34,6 +34,11 @@ function normalizePhone(phone: string, country?: "ML" | "CI"): string {
   return "+223" + p;
 }
 
+// Client singleton avec autoRetry pour absorber les 429 sans crash
+function getClient() {
+  return twilio(accountSid, authToken, { autoRetry: true, maxRetries: 3 });
+}
+
 export async function sendSMS(
   to: string,
   body: string,
@@ -45,10 +50,20 @@ export async function sendSMS(
   }
   const normalized = normalizePhone(to, country);
   try {
-    const client = twilio(accountSid, authToken);
-    await client.messages.create({ body, from, to: normalized });
+    await getClient().messages.create({ body, from, to: normalized });
   } catch (err) {
-    // fire & forget — ne pas faire crasher l'API
     console.error("[Twilio] Erreur envoi SMS:", err);
+  }
+}
+
+// 100ms entre chaque appel = 10 req/s, dans la limite des alpha sender ML/CI (10 MPS)
+// Twilio gère la file en interne ; autoRetry couvre les 429 résiduels
+export async function sendSMSBulk(
+  messages: Array<{ to: string; body: string; country?: "ML" | "CI" }>,
+  delayMs = 150
+): Promise<void> {
+  for (const msg of messages) {
+    await sendSMS(msg.to, msg.body, msg.country);
+    await new Promise((r) => setTimeout(r, delayMs));
   }
 }
