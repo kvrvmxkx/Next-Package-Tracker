@@ -272,14 +272,16 @@ model TrancheTarif {
 // ─── Caisse ───────────────────────────────────────────────────
 
 model Retrait {
-  id        String   @id @default(cuid())
-  montant   Float
-  motif     String
-  note      String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  montant     Float
+  motif       String
+  note        String?
+  destination String   // "MALI" | "COTE_DIVOIRE"
+  createdAt   DateTime @default(now())
 
   agent   User   @relation(fields: [agentId], references: [id])
   agentId String
 
   @@index([createdAt])
+  @@index([destination])
 }

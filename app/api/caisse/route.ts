@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { Roles } from "@/lib/enums";
 
+type Destination = "MALI" | "COTE_DIVOIRE";
+
+
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || (session.user as any).role !== Roles.SUPER_ADMIN) {
@@ -12,24 +15,30 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+  const dest = searchParams.get("destination") as Destination | null;
   const limit = 20;
   const skip = (page - 1) * limit;
 
-  // Totaux caisse
+  const retraitsWhere = dest ? { destination: dest } : {};
+
   const [totalEncaisseResult, totalRetraitsResult, retraits, totalRetraitsCount] =
     await Promise.all([
-      // Somme de tous les paiements (avances + soldes)
-      prisma.paiement.aggregate({ _sum: { montant: true } }),
-      // Somme de tous les retraits
-      prisma.retrait.aggregate({ _sum: { montant: true } }),
-      // Liste paginée des retraits
+      prisma.paiement.aggregate({
+        _sum: { montant: true },
+        where: dest ? { colis: { destination: dest } } : {},
+      }),
+      prisma.retrait.aggregate({
+        _sum: { montant: true },
+        where: retraitsWhere,
+      }),
       prisma.retrait.findMany({
+        where: retraitsWhere,
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
         include: { agent: { select: { firstname: true, lastname: true } } },
       }),
-      prisma.retrait.count(),
+      prisma.retrait.count({ where: retraitsWhere }),
     ]);
 
   const totalEncaisse = totalEncaisseResult._sum.montant ?? 0;
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { montant, motif, note } = body;
+  const { montant, motif, note, destination } = body;
 
   if (!montant || montant <= 0) {
     return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
@@ -65,11 +74,20 @@ export async function POST(request: NextRequest) {
   if (!motif || motif.trim() === "") {
     return NextResponse.json({ error: "Motif requis" }, { status: 400 });
   }
+  if (!destination || !["MALI", "COTE_DIVOIRE"].includes(destination)) {
+    return NextResponse.json({ error: "Destination requise" }, { status: 400 });
+  }
 
-  // Vérifier que le solde est suffisant
+  // Vérifier que le solde de cette caisse est suffisant
   const [totalEncaisseResult, totalRetraitsResult] = await Promise.all([
-    prisma.paiement.aggregate({ _sum: { montant: true } }),
-    prisma.retrait.aggregate({ _sum: { montant: true } }),
+    prisma.paiement.aggregate({
+      _sum: { montant: true },
+      where: { colis: { destination } },
+    }),
+    prisma.retrait.aggregate({
+      _sum: { montant: true },
+      where: { destination },
+    }),
   ]);
   const solde =
     (totalEncaisseResult._sum.montant ?? 0) -
@@ -87,6 +105,7 @@ export async function POST(request: NextRequest) {
       montant,
       motif: motif.trim(),
       note: note?.trim() || null,
+      destination,
       agentId: session.user.id,
     },
   });

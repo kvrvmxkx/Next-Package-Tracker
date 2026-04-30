@@ -28,6 +28,9 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
 
+type Destination = "MALI" | "COTE_DIVOIRE";
+type Tab = "MALI" | "COTE_DIVOIRE" | "ALL";
+
 interface Retrait {
   id: string;
   montant: number;
@@ -53,7 +56,14 @@ const retraitSchema = z.object({
 
 type RetraitForm = z.infer<typeof retraitSchema>;
 
+const TABS: { key: Tab; label: string }[] = [
+  { key: "MALI", label: "Mali" },
+  { key: "COTE_DIVOIRE", label: "Côte d'Ivoire" },
+  { key: "ALL", label: "Global" },
+];
+
 export default function CaissePage() {
+  const [tab, setTab] = useState<Tab>("MALI");
   const [data, setData] = useState<CaisseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -65,10 +75,11 @@ export default function CaissePage() {
     defaultValues: { montant: "", motif: "", note: "" },
   });
 
-  const fetchData = useCallback(async (p = 1) => {
+  const fetchData = useCallback(async (p = 1, t: Tab = "MALI") => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/caisse?page=${p}`);
+      const dest = t !== "ALL" ? `&destination=${t}` : "";
+      const res = await fetch(`/api/caisse?page=${p}${dest}`);
       const json = await res.json();
       setData(json);
     } finally {
@@ -77,16 +88,26 @@ export default function CaissePage() {
   }, []);
 
   useEffect(() => {
-    fetchData(page);
-  }, [fetchData, page]);
+    setPage(1);
+    fetchData(1, tab);
+  }, [fetchData, tab]);
+
+  useEffect(() => {
+    fetchData(page, tab);
+  }, [fetchData, page, tab]);
 
   async function onSubmit(values: RetraitForm) {
+    if (tab === "ALL") return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/caisse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, montant: parseFloat(values.montant) }),
+        body: JSON.stringify({
+          ...values,
+          montant: parseFloat(values.montant),
+          destination: tab as Destination,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -97,7 +118,7 @@ export default function CaissePage() {
       setDialogOpen(false);
       form.reset();
       setPage(1);
-      fetchData(1);
+      fetchData(1, tab);
     } finally {
       setSubmitting(false);
     }
@@ -108,6 +129,8 @@ export default function CaissePage() {
     { title: "Total encaissé",   value: data?.totalEncaisse, icon: TrendingUp },
     { title: "Total retiré",     value: data?.totalRetraits, icon: TrendingDown },
   ];
+
+  const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
   return (
     <div className="flex flex-col gap-6 py-4">
@@ -124,11 +147,30 @@ export default function CaissePage() {
               Export CSV
             </Button>
           </a>
-          <Button onClick={() => setDialogOpen(true)}>
-            <ArrowDownCircle size={14} className="mr-2" />
-            Retrait
-          </Button>
+          {tab !== "ALL" && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <ArrowDownCircle size={14} className="mr-2" />
+              Retrait
+            </Button>
+          )}
         </div>
+      </div>
+
+      {/* Onglets */}
+      <div className="flex border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-colors ${
+              tab === t.key
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* KPIs */}
@@ -155,7 +197,9 @@ export default function CaissePage() {
       {/* Tableau des retraits */}
       <div className="border border-border">
         <div className="px-5 py-4 border-b border-border">
-          <p className="text-[9px] font-bold uppercase tracking-[0.22em]">Historique des retraits</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.22em]">
+            Historique des retraits — {currentTabLabel}
+          </p>
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -212,44 +256,43 @@ export default function CaissePage() {
               )}
             </TableBody>
           </Table>
-
         </div>
-          {/* Pagination */}
-          {data && data.pagination.pages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {data.pagination.total} retrait{data.pagination.total > 1 ? "s" : ""}
-              </p>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Précédent
-                </Button>
-                <span className="text-[10px] font-bold uppercase tracking-wider tabular-nums">
-                  {page} / {data.pagination.pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.pagination.pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Suivant
-                </Button>
-              </div>
+        {/* Pagination */}
+        {data && data.pagination.pages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {data.pagination.total} retrait{data.pagination.total > 1 ? "s" : ""}
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Précédent
+              </Button>
+              <span className="text-[10px] font-bold uppercase tracking-wider tabular-nums">
+                {page} / {data.pagination.pages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= data.pagination.pages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Suivant
+              </Button>
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       {/* Dialog Retrait */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Effectuer un retrait</DialogTitle>
+            <DialogTitle>Retrait — Caisse {currentTabLabel}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="py-2 flex flex-col gap-4">
