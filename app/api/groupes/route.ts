@@ -5,17 +5,20 @@ import { auth } from "@/lib/auth";
 import { generateColisCode, generatePublicToken } from "@/lib/utils";
 import { StatutColis, Roles } from "@/lib/enums";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
   const role = (session.user as any).role;
+  const dest = new URL(req.url).searchParams.get("destination");
 
   const where =
     role === Roles.AGENT_MALI
       ? { destination: "MALI" }
       : role === Roles.AGENT_CI
       ? { destination: "COTE_DIVOIRE" }
+      : dest
+      ? { destination: dest }
       : {};
 
   const groupes = await prisma.groupeColis.findMany({

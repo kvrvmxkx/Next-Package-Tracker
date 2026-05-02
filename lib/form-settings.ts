@@ -1,4 +1,5 @@
 const STORAGE_KEY = "pt-form-settings";
+const COUNTRY_KEY = "pt-active-destination";
 
 export type FormSettings = {
   afficherDescription: boolean;
@@ -27,4 +28,15 @@ export function getFormSettings(): FormSettings {
 
 export function saveFormSettings(settings: FormSettings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+export type ActiveDestination = "MALI" | "COTE_DIVOIRE";
+
+export function getActiveDestination(): ActiveDestination {
+  if (typeof window === "undefined") return "MALI";
+  return (localStorage.getItem(COUNTRY_KEY) as ActiveDestination) ?? "MALI";
+}
+
+export function saveActiveDestination(dest: ActiveDestination): void {
+  localStorage.setItem(COUNTRY_KEY, dest);
 }

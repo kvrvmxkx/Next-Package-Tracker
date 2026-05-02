@@ -28,13 +28,14 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/status-badge";
-import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2, ArrowRightLeft, Loader2, Pencil } from "lucide-react";
+import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Trash2, ArrowRightLeft, Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
 import { Roles, StatutColis } from "@/lib/enums";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+
 
 const STATUTS = [
   { value: "ALL", label: "Tous les statuts" },
@@ -71,7 +72,7 @@ export default function ColisPage() {
   const { colis, loading, deleteColis, refetch } = useColis();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("ALL");
-  const [filterDest, setFilterDest] = useState("ALL");
+
   const [filterExpress, setFilterExpress] = useState(false);
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -170,36 +171,33 @@ export default function ColisPage() {
       c.destinataireNom.toLowerCase().includes(search.toLowerCase()) ||
       c.destinatairePhone.includes(search);
     const matchStatut = filterStatut === "ALL" || c.statut === filterStatut;
-    const matchDest = filterDest === "ALL" || c.destination === filterDest;
+
     const matchExpress = !filterExpress || (c as any).express === true;
-    return matchSearch && matchStatut && matchDest && matchExpress;
+    return matchSearch && matchStatut && matchExpress;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, filterStatut, filterDest, filterExpress]);
+  useEffect(() => { setPage(1); }, [search, filterStatut, filterExpress]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Colis</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-sm font-bold uppercase tracking-[0.2em] shrink-0">Colis</h1>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/colis/groupe">
-              <Layers className="w-4 h-4 mr-1" />
-              Groupages
-            </Link>
-          </Button>
-          <Button variant="outline" onClick={() => setBulkOpen(true)}>
+          <Button variant="outline" onClick={() => setBulkOpen(true)} className="hidden sm:flex">
             <ArrowRightLeft className="w-4 h-4 mr-1" />
             Changer statut
           </Button>
+          <Button variant="outline" size="icon" onClick={() => setBulkOpen(true)} className="sm:hidden">
+            <ArrowRightLeft className="w-4 h-4" />
+          </Button>
           <Button asChild>
             <Link href="/colis/ajouter">
-              <Plus className="w-4 h-4 mr-1" />
-              Nouveau colis
+              <Plus className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Nouveau colis</span>
             </Link>
           </Button>
         </div>
@@ -227,16 +225,7 @@ export default function ColisPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={filterDest} onValueChange={setFilterDest}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Toutes destinations</SelectItem>
-            <SelectItem value="MALI">Mali</SelectItem>
-            <SelectItem value="COTE_DIVOIRE">Côte d&apos;Ivoire</SelectItem>
-          </SelectContent>
-        </Select>
+
         <button
           type="button"
           onClick={() => setFilterExpress((v) => !v)}

@@ -35,7 +35,7 @@ import {
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
-import { getFormSettings, type FormSettings } from "@/lib/form-settings";
+import { getFormSettings, getActiveDestination, type FormSettings } from "@/lib/form-settings";
 import { Switch } from "@/components/ui/switch";
 
 // ─── Schema ──────────────────────────────────────────────────
@@ -134,10 +134,7 @@ export default function AjouterGroupePage() {
   const form = useForm<GroupeFormValues>({
     resolver: zodResolver(groupeSchema),
     defaultValues: {
-      destination:
-        (session?.user as any)?.role === "AGENT_CI"
-          ? Destination.COTE_DIVOIRE
-          : Destination.MALI,
+      destination: getActiveDestination() as Destination,
       express: false,
       expediteurEstFournisseur: false,
       expediteurNom: "",
@@ -174,17 +171,15 @@ export default function AjouterGroupePage() {
       .then(setTarifs);
   }, []);
 
-  // Pré-générer le code CF dès l'ouverture du formulaire
+  // Générer le code CF/CIF selon la destination sélectionnée
   useEffect(() => {
     setCodeLoading(true);
-    fetch("/api/groupes/code")
+    fetch(`/api/groupes/code?destination=${destination}`)
       .then((r) => r.json())
-      .then((data) => {
-        setCodeGroupe(data.code ?? null);
-      })
+      .then((data) => setCodeGroupe(data.code ?? null))
       .catch(() => setCodeGroupe(null))
       .finally(() => setCodeLoading(false));
-  }, []);
+  }, [destination]);
 
   const tarifsFiltered = tarifs.filter(
     (t) => t!.active && t!.destination === destination && !t!.express
@@ -311,7 +306,7 @@ export default function AjouterGroupePage() {
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel>Destination *</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange} disabled>
                       <SelectTrigger>
                         <SelectValue placeholder="Choisir" />
                       </SelectTrigger>

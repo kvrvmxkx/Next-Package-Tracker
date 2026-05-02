@@ -29,14 +29,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Roles } from "@/lib/enums";
+import { getActiveDestination, type ActiveDestination } from "@/lib/form-settings";
 
 type Destination = "MALI" | "COTE_DIVOIRE";
-type Tab = "MALI" | "COTE_DIVOIRE" | "ALL";
-
-const ROLE_TAB: Record<string, Tab> = {
-  [Roles.AGENT_MALI]: "MALI",
-  [Roles.AGENT_CI]: "COTE_DIVOIRE",
-};
 
 interface Retrait {
   id: string;
@@ -63,20 +58,19 @@ const retraitSchema = z.object({
 
 type RetraitForm = z.infer<typeof retraitSchema>;
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "MALI", label: "Mali" },
-  { key: "COTE_DIVOIRE", label: "Côte d'Ivoire" },
-  { key: "ALL", label: "Global" },
-];
+
+const ROLE_DEST: Record<string, Destination> = {
+  [Roles.AGENT_MALI]: "MALI",
+  [Roles.AGENT_CI]: "COTE_DIVOIRE",
+};
 
 export default function CaissePage() {
   const { data: session } = authClient.useSession();
   const role = (session?.user as any)?.role ?? "";
   const isSuperAdmin = role === Roles.SUPER_ADMIN;
-  // Les agents ont une destination fixe, les admins commencent sur Mali
-  const defaultTab: Tab = ROLE_TAB[role] ?? "MALI";
 
-  const [tab, setTab] = useState<Tab>(defaultTab);
+  // Destination : fixe pour les agents, depuis le paramètre pays pour l'admin
+  const [dest, setDest] = useState<Destination>("MALI");
   const [data, setData] = useState<CaisseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -88,29 +82,32 @@ export default function CaissePage() {
     defaultValues: { montant: "", motif: "", note: "" },
   });
 
-  const fetchData = useCallback(async (p = 1, t: Tab = "MALI") => {
+  useEffect(() => {
+    const d = ROLE_DEST[role] ?? getActiveDestination();
+    setDest(d);
+  }, [role]);
+
+  const fetchData = useCallback(async (p = 1, d: Destination = dest) => {
     setLoading(true);
     try {
-      const dest = t !== "ALL" ? `&destination=${t}` : "";
-      const res = await fetch(`/api/caisse?page=${p}${dest}`);
+      const res = await fetch(`/api/caisse?page=${p}&destination=${d}`);
       const json = await res.json();
       setData(json);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dest]);
 
   useEffect(() => {
     setPage(1);
-    fetchData(1, tab);
-  }, [fetchData, tab]);
+    fetchData(1, dest);
+  }, [dest]);
 
   useEffect(() => {
-    fetchData(page, tab);
-  }, [fetchData, page, tab]);
+    fetchData(page, dest);
+  }, [page]);
 
   async function onSubmit(values: RetraitForm) {
-    if (tab === "ALL") return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/caisse", {
@@ -119,7 +116,7 @@ export default function CaissePage() {
         body: JSON.stringify({
           ...values,
           montant: parseFloat(values.montant),
-          destination: tab as Destination,
+          destination: dest,
         }),
       });
       const json = await res.json();
@@ -131,7 +128,7 @@ export default function CaissePage() {
       setDialogOpen(false);
       form.reset();
       setPage(1);
-      fetchData(1, tab);
+      fetchData(1, dest);
     } finally {
       setSubmitting(false);
     }
@@ -143,7 +140,7 @@ export default function CaissePage() {
     { title: "Total retiré",     value: data?.totalRetraits, icon: TrendingDown },
   ];
 
-  const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
+  const destLabel = dest === "COTE_DIVOIRE" ? "Côte d'Ivoire" : "Mali";
 
   return (
     <div className="flex flex-col gap-6 py-4">
@@ -162,7 +159,7 @@ export default function CaissePage() {
               </Button>
             </a>
           )}
-          {isSuperAdmin && tab !== "ALL" && (
+          {isSuperAdmin && (
             <Button onClick={() => setDialogOpen(true)}>
               <ArrowDownCircle size={14} className="mr-2" />
               Retrait
@@ -170,25 +167,6 @@ export default function CaissePage() {
           )}
         </div>
       </div>
-
-      {/* Onglets — visibles uniquement pour SUPER_ADMIN */}
-      {isSuperAdmin && (
-        <div className="flex border-b border-border">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-colors ${
-                tab === t.key
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
@@ -215,7 +193,7 @@ export default function CaissePage() {
       <div className="border border-border">
         <div className="px-5 py-4 border-b border-border">
           <p className="text-[9px] font-bold uppercase tracking-[0.22em]">
-            Historique des retraits — {currentTabLabel}
+            Historique des retraits — {destLabel}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -309,7 +287,7 @@ export default function CaissePage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Retrait — Caisse {currentTabLabel}</DialogTitle>
+            <DialogTitle>Retrait — Caisse {destLabel}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="py-2 flex flex-col gap-4">

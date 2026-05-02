@@ -25,7 +25,7 @@ import { ArrowLeft, Loader2, Package, Store, Save } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import type { TarifWithTranches } from "@/lib/types";
-import { getFormSettings, type FormSettings } from "@/lib/form-settings";
+import { getFormSettings, getActiveDestination, type FormSettings } from "@/lib/form-settings";
 
 export default function AjouterColisPage() {
   const router = useRouter();
@@ -44,10 +44,7 @@ export default function AjouterColisPage() {
       description: "",
       poids: "",
       nombreColis: "1",
-      destination:
-        (session?.user as any)?.role === "AGENT_CI"
-          ? Destination.COTE_DIVOIRE
-          : Destination.MALI,
+      destination: getActiveDestination() as Destination,
       expediteurEstFournisseur: false,
       expediteurNom: "",
       expediteurPhone: "",
@@ -177,6 +174,7 @@ export default function AjouterColisPage() {
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
+                        disabled
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Choisir" />

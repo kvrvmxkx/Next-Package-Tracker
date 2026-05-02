@@ -5,13 +5,7 @@ import {
   Package, Clock, CheckCircle, XCircle, TrendingUp,
   CalendarDays, Users, AlertTriangle,
 } from "lucide-react";
-
-type Tab = "ALL" | "MALI" | "COTE_DIVOIRE";
-const TABS: { key: Tab; label: string }[] = [
-  { key: "ALL",         label: "Global" },
-  { key: "MALI",        label: "Mali" },
-  { key: "COTE_DIVOIRE", label: "Côte d'Ivoire" },
-];
+import { getActiveDestination } from "@/lib/form-settings";
 import KpiCard from "@/components/kpi-card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -43,18 +37,17 @@ const PIE_COLORS = [
 ];
 
 export default function DashboardSuperAdmin() {
-  const [tab, setTab] = useState<Tab>("ALL");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const dest = tab !== "ALL" ? `?destination=${tab}` : "";
-    fetch(`/api/tableau-de-bord${dest}`)
+    const dest = getActiveDestination();
+    fetch(`/api/tableau-de-bord?destination=${dest}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, []);
 
   if (loading) {
     return (
@@ -104,23 +97,6 @@ export default function DashboardSuperAdmin() {
         <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground hidden sm:block">
           {today}
         </p>
-      </div>
-
-      {/* ── Onglets ── */}
-      <div className="flex border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-colors ${
-              tab === t.key
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
       </div>
 
       {/* ── Revenue Section ── */}

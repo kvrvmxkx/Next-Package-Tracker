@@ -151,10 +151,13 @@ export async function POST(request: NextRequest) {
         if (!c) return;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
         const suivi  = `${appUrl}/suivi/${c.tokenPublic}`;
-        await Promise.all([
-          sendSMS(c.expediteurPhone,  `Votre colis a été enregistré. Code: ${c.code}. Suivi: ${suivi}`),
+        const tasks = [
           sendSMS(c.destinatairePhone, `Un colis vous est destiné depuis la Chine. Code: ${c.code}. Suivez: ${suivi}`),
-        ]);
+        ];
+        if (c.expediteurPhone) {
+          tasks.push(sendSMS(c.expediteurPhone, `Votre colis a été enregistré. Code: ${c.code}. Suivi: ${suivi}`));
+        }
+        await Promise.all(tasks);
       })
       .catch((err) => console.error("SMS error:", err));
 

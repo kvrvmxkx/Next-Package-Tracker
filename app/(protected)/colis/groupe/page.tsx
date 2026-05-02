@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Search, Eye, Layers, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { getDestinationText } from "@/lib/utils";
+import { getActiveDestination } from "@/lib/form-settings";
 
 type GroupeItem = {
   id: string;
@@ -27,7 +28,8 @@ export default function GroupesPage() {
 
   const fetchGroupes = () => {
     setLoading(true);
-    fetch("/api/groupes")
+    const dest = getActiveDestination();
+    fetch(`/api/groupes?destination=${dest}`)
       .then((r) => r.json())
       .then((data) => setGroupes(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
