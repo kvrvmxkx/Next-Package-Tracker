@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Settings } from "lucide-react";
-import {
-  getFormSettings,
-  saveFormSettings,
-  type FormSettings,
-} from "@/lib/form-settings";
+import { Settings, ShieldCheck } from "lucide-react";
+import { getFormSettings, saveFormSettings, type FormSettings } from "@/lib/form-settings";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
+import { Roles } from "@/lib/enums";
+
+type AppSettings = { agentsCanEditColis: boolean; agentsCanDeleteColis: boolean };
 
 const CHAMPS = [
   {
@@ -35,10 +35,15 @@ const CHAMPS = [
 ];
 
 export default function ParametresPage() {
+  const { data: session } = authClient.useSession();
+  const isSuperAdmin = (session?.user as any)?.role === Roles.SUPER_ADMIN;
+
   const [settings, setSettings] = useState<FormSettings | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => {
     setSettings(getFormSettings());
+    fetch("/api/parametres").then((r) => r.json()).then(setAppSettings);
   }, []);
 
   function toggle(key: keyof FormSettings) {
@@ -49,10 +54,74 @@ export default function ParametresPage() {
     toast.success("Paramètre mis à jour", { position: "bottom-right" });
   }
 
+  async function toggleAppSetting(key: keyof AppSettings) {
+    if (!appSettings) return;
+    const next = { ...appSettings, [key]: !appSettings[key] };
+    setAppSettings(next);
+    await fetch("/api/parametres", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: next[key] }),
+    });
+    toast.success("Paramètre mis à jour", { position: "bottom-right" });
+  }
+
   return (
     <div className="max-w-lg mx-auto space-y-4">
       <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Paramètres</h1>
 
+      {/* Permissions agents — SUPER_ADMIN uniquement */}
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              Permissions des agents
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Contrôlez ce que les agents peuvent faire sur les colis.
+            </p>
+          </CardHeader>
+          <CardContent className="divide-y divide-border">
+            {appSettings === null ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="py-4 flex items-center justify-between animate-pulse">
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-40 bg-muted rounded" />
+                    <div className="h-3 w-56 bg-muted rounded" />
+                  </div>
+                  <div className="h-6 w-10 bg-muted rounded-full" />
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="py-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Modifier les colis</p>
+                    <p className="text-xs text-muted-foreground">Les agents peuvent éditer les informations d&apos;un colis.</p>
+                  </div>
+                  <Switch
+                    checked={appSettings.agentsCanEditColis}
+                    onCheckedChange={() => toggleAppSetting("agentsCanEditColis")}
+                  />
+                </div>
+                <div className="py-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Supprimer les colis</p>
+                    <p className="text-xs text-muted-foreground">Les agents peuvent supprimer un colis de la liste.</p>
+                  </div>
+                  <Switch
+                    checked={appSettings.agentsCanDeleteColis}
+                    onCheckedChange={() => toggleAppSetting("agentsCanDeleteColis")}
+                  />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Champs formulaire */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -81,10 +150,7 @@ export default function ParametresPage() {
                   <p className="text-sm font-medium">{label}</p>
                   <p className="text-xs text-muted-foreground">{description}</p>
                 </div>
-                <Switch
-                  checked={settings[key]}
-                  onCheckedChange={() => toggle(key)}
-                />
+                <Switch checked={settings[key]} onCheckedChange={() => toggle(key)} />
               </div>
             ))
           )}

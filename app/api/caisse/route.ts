@@ -6,16 +6,25 @@ import { Roles } from "@/lib/enums";
 
 type Destination = "MALI" | "COTE_DIVOIRE";
 
+const ROLE_DEST: Record<string, Destination> = {
+  [Roles.AGENT_MALI]: "MALI",
+  [Roles.AGENT_CI]: "COTE_DIVOIRE",
+};
+
+const ALLOWED_ROLES = [Roles.SUPER_ADMIN, Roles.AGENT_MALI, Roles.AGENT_CI];
 
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || (session.user as any).role !== Roles.SUPER_ADMIN) {
+  const role = (session?.user as any)?.role ?? "";
+  if (!session || !ALLOWED_ROLES.includes(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const dest = searchParams.get("destination") as Destination | null;
+  // Les agents voient uniquement leur destination — le paramètre URL est ignoré pour eux
+  const dest: Destination | null =
+    ROLE_DEST[role] ?? (searchParams.get("destination") as Destination | null);
   const limit = 20;
   const skip = (page - 1) * limit;
 
@@ -78,7 +87,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Destination requise" }, { status: 400 });
   }
 
-  // Vérifier que le solde de cette caisse est suffisant
   const [totalEncaisseResult, totalRetraitsResult] = await Promise.all([
     prisma.paiement.aggregate({
       _sum: { montant: true },

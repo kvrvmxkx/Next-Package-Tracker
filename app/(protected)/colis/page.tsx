@@ -28,11 +28,13 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/status-badge";
-import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
+import { Plus, Search, Eye, ExternalLink, Filter, ChevronLeft, ChevronRight, Layers, Trash2, ArrowRightLeft, Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { amountFormatXOF, getDestinationText } from "@/lib/utils";
-import { StatutColis } from "@/lib/enums";
+import { Roles, StatutColis } from "@/lib/enums";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 
 const STATUTS = [
   { value: "ALL", label: "Tous les statuts" },
@@ -56,7 +58,16 @@ const STATUTS_TRANSITION = [
 
 const PER_PAGE = 10;
 
+type AppSettings = { agentsCanEditColis: boolean; agentsCanDeleteColis: boolean };
+type EditForm = { poids: string; expediteurNom: string; expediteurPhone: string; destinataireNom: string; destinatairePhone: string; destinataireVille: string };
+
 export default function ColisPage() {
+  const { data: session } = authClient.useSession();
+  const role = (session?.user as any)?.role ?? "";
+  const isSuperAdmin = role === Roles.SUPER_ADMIN;
+
+  const [appSettings, setAppSettings] = useState<AppSettings>({ agentsCanEditColis: false, agentsCanDeleteColis: false });
+
   const { colis, loading, deleteColis, refetch } = useColis();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("ALL");
@@ -64,6 +75,48 @@ export default function ColisPage() {
   const [filterExpress, setFilterExpress] = useState(false);
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Edit dialog
+  const [editCode, setEditCode] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ poids: "", expediteurNom: "", expediteurPhone: "", destinataireNom: "", destinatairePhone: "", destinataireVille: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/parametres").then((r) => r.json()).then(setAppSettings);
+  }, []);
+
+  const canEdit = isSuperAdmin || appSettings.agentsCanEditColis;
+  const canDelete = isSuperAdmin || appSettings.agentsCanDeleteColis;
+
+  function openEdit(c: typeof colis[0]) {
+    setEditCode(c.code);
+    setEditForm({
+      poids: String(c.poids),
+      expediteurNom: c.expediteurNom,
+      expediteurPhone: c.expediteurPhone,
+      destinataireNom: c.destinataireNom,
+      destinatairePhone: c.destinatairePhone,
+      destinataireVille: (c as any).destinataireVille ?? "",
+    });
+  }
+
+  async function saveEdit() {
+    if (!editCode) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/colis/${editCode}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...editForm, poids: parseFloat(editForm.poids) }),
+      });
+      if (!res.ok) { toast.error("Erreur lors de la modification"); return; }
+      toast.success("Colis modifié");
+      setEditCode(null);
+      refetch();
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   // Bulk statut
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -261,9 +314,16 @@ export default function ColisPage() {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  {canEdit && (
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,9 +415,16 @@ export default function ColisPage() {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      {canEdit && (
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.code)} disabled={deletingId === c.code}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -481,6 +548,56 @@ export default function ColisPage() {
             >
               {bulkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
               Appliquer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog — édition colis */}
+      <Dialog open={!!editCode} onOpenChange={(o) => { if (!o) setEditCode(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4" />
+              Modifier le colis {editCode}
+            </DialogTitle>
+          </DialogHeader>
+          <FieldGroup className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Expéditeur</FieldLabel>
+                <Input value={editForm.expediteurNom} onChange={(e) => setEditForm((f) => ({ ...f, expediteurNom: e.target.value }))} placeholder="Nom expéditeur" />
+              </Field>
+              <Field>
+                <FieldLabel>Tél. expéditeur</FieldLabel>
+                <Input value={editForm.expediteurPhone} onChange={(e) => setEditForm((f) => ({ ...f, expediteurPhone: e.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Destinataire</FieldLabel>
+                <Input value={editForm.destinataireNom} onChange={(e) => setEditForm((f) => ({ ...f, destinataireNom: e.target.value }))} placeholder="Nom destinataire" />
+              </Field>
+              <Field>
+                <FieldLabel>Tél. destinataire</FieldLabel>
+                <Input value={editForm.destinatairePhone} onChange={(e) => setEditForm((f) => ({ ...f, destinatairePhone: e.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Ville</FieldLabel>
+                <Input value={editForm.destinataireVille} onChange={(e) => setEditForm((f) => ({ ...f, destinataireVille: e.target.value }))} placeholder="Ville" />
+              </Field>
+              <Field>
+                <FieldLabel>Poids (kg)</FieldLabel>
+                <Input type="number" min={0} step={0.1} value={editForm.poids} onChange={(e) => setEditForm((f) => ({ ...f, poids: e.target.value }))} />
+              </Field>
+            </div>
+          </FieldGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCode(null)}>Annuler</Button>
+            <Button onClick={saveEdit} disabled={editSaving}>
+              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

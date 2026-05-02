@@ -47,7 +47,7 @@ const items: MenuItem[] = [
     title: "Tableau de bord",
     url: "/tableau-de-bord",
     icon: LayoutDashboard,
-    roles: [Roles.SUPER_ADMIN],
+    roles: [Roles.SUPER_ADMIN, Roles.AGENT_MALI, Roles.AGENT_CI, Roles.AGENT_CHINE],
   },
   {
     title: "Colis",
@@ -87,7 +87,7 @@ const items: MenuItem[] = [
     title: "Caisse",
     url: "/caisse",
     icon: Vault,
-    roles: [Roles.SUPER_ADMIN],
+    roles: [Roles.SUPER_ADMIN, Roles.AGENT_MALI, Roles.AGENT_CI],
   },
   {
     title: "Paramètres",

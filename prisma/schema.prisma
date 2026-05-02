@@ -285,3 +285,10 @@ model Retrait {
   @@index([createdAt])
   @@index([destination])
 }
+
+// ─── Paramètres globaux ───────────────────────────────────────
+
+model AppSetting {
+  key   String @id
+  value String
+}

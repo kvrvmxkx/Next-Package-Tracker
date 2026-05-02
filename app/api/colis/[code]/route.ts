@@ -2,6 +2,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { Roles } from "@/lib/enums";
+
+async function getSetting(key: string): Promise<boolean> {
+  const row = await prisma.appSetting.findUnique({ where: { key } });
+  return row?.value === "true";
+}
 
 export async function GET(
   _req: NextRequest,
@@ -49,8 +55,12 @@ export async function PUT(
   const { code } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const role = (session.user as any).role;
+  if (role !== Roles.SUPER_ADMIN) {
+    const allowed = await getSetting("agentsCanEditColis");
+    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
@@ -86,8 +96,12 @@ export async function DELETE(
   const { code } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const role = (session.user as any).role;
+  if (role !== Roles.SUPER_ADMIN) {
+    const allowed = await getSetting("agentsCanDeleteColis");
+    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

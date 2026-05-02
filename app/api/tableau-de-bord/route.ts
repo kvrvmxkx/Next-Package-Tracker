@@ -1,15 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { Roles, StatutColis } from "@/lib/enums";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session || (session.user as any).role !== Roles.SUPER_ADMIN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const dest = searchParams.get("destination") as "MALI" | "COTE_DIVOIRE" | null;
+  const colisWhere = dest ? { destination: dest } : {};
 
   try {
     const startOfDay = new Date();
@@ -32,17 +36,24 @@ export async function GET() {
       recentColis,
       colisParMois,
     ] = await Promise.all([
-      prisma.colis.count(),
-      prisma.colis.count({ where: { statut: StatutColis.ENREGISTRE } }),
-      prisma.colis.count({ where: { statut: { in: [StatutColis.EN_COURS_ENVOI, StatutColis.EN_TRANSIT] } } }),
-      prisma.colis.count({ where: { statut: StatutColis.LIVRE } }),
-      prisma.colis.count({ where: { statut: StatutColis.ANNULE } }),
-      prisma.colis.count({ where: { statut: StatutColis.LITIGE } }),
-      prisma.colis.aggregate({ _sum: { prixTotal: true } }),
-      prisma.paiement.aggregate({ _sum: { montant: true } }),
+      prisma.colis.count({ where: colisWhere }),
+      prisma.colis.count({ where: { ...colisWhere, statut: StatutColis.ENREGISTRE } }),
+      prisma.colis.count({ where: { ...colisWhere, statut: { in: [StatutColis.EN_COURS_ENVOI, StatutColis.EN_TRANSIT] } } }),
+      prisma.colis.count({ where: { ...colisWhere, statut: StatutColis.LIVRE } }),
+      prisma.colis.count({ where: { ...colisWhere, statut: StatutColis.ANNULE } }),
+      prisma.colis.count({ where: { ...colisWhere, statut: StatutColis.LITIGE } }),
+      prisma.colis.aggregate({ _sum: { prixTotal: true }, where: colisWhere }),
+      prisma.paiement.aggregate({
+        _sum: { montant: true },
+        where: dest ? { colis: { destination: dest } } : {},
+      }),
       prisma.user.count({ where: { active: true } }),
-      prisma.colis.findMany({ where: { createdAt: { gte: startOfDay } }, select: { poids: true } }),
       prisma.colis.findMany({
+        where: { ...colisWhere, createdAt: { gte: startOfDay } },
+        select: { poids: true },
+      }),
+      prisma.colis.findMany({
+        where: colisWhere,
         take: 5,
         orderBy: { createdAt: "desc" },
         select: {
@@ -51,7 +62,7 @@ export async function GET() {
         },
       }),
       prisma.colis.findMany({
-        where: { createdAt: { gte: sixMonthsAgo } },
+        where: { ...colisWhere, createdAt: { gte: sixMonthsAgo } },
         select: { createdAt: true, prixTotal: true },
       }),
     ]);

@@ -27,9 +27,16 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { Roles } from "@/lib/enums";
 
 type Destination = "MALI" | "COTE_DIVOIRE";
 type Tab = "MALI" | "COTE_DIVOIRE" | "ALL";
+
+const ROLE_TAB: Record<string, Tab> = {
+  [Roles.AGENT_MALI]: "MALI",
+  [Roles.AGENT_CI]: "COTE_DIVOIRE",
+};
 
 interface Retrait {
   id: string;
@@ -63,7 +70,13 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function CaissePage() {
-  const [tab, setTab] = useState<Tab>("MALI");
+  const { data: session } = authClient.useSession();
+  const role = (session?.user as any)?.role ?? "";
+  const isSuperAdmin = role === Roles.SUPER_ADMIN;
+  // Les agents ont une destination fixe, les admins commencent sur Mali
+  const defaultTab: Tab = ROLE_TAB[role] ?? "MALI";
+
+  const [tab, setTab] = useState<Tab>(defaultTab);
   const [data, setData] = useState<CaisseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -141,13 +154,15 @@ export default function CaissePage() {
           <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Caisse</h1>
         </div>
         <div className="flex items-center gap-2">
-          <a href="/api/export/retraits">
-            <Button variant="outline" size="sm">
-              <Download size={14} className="mr-2" />
-              Export CSV
-            </Button>
-          </a>
-          {tab !== "ALL" && (
+          {isSuperAdmin && (
+            <a href="/api/export/retraits">
+              <Button variant="outline" size="sm">
+                <Download size={14} className="mr-2" />
+                Export CSV
+              </Button>
+            </a>
+          )}
+          {isSuperAdmin && tab !== "ALL" && (
             <Button onClick={() => setDialogOpen(true)}>
               <ArrowDownCircle size={14} className="mr-2" />
               Retrait
@@ -156,22 +171,24 @@ export default function CaissePage() {
         </div>
       </div>
 
-      {/* Onglets */}
-      <div className="flex border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-colors ${
-              tab === t.key
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Onglets — visibles uniquement pour SUPER_ADMIN */}
+      {isSuperAdmin && (
+        <div className="flex border-b border-border">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-colors ${
+                tab === t.key
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">

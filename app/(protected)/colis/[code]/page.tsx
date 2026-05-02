@@ -41,7 +41,7 @@ import {
   getRelativeTimeWithPrefix,
   getStatutText,
 } from "@/lib/utils";
-import { StatutColis, TypePaiement } from "@/lib/enums";
+import { Roles, StatutColis, TypePaiement } from "@/lib/enums";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import type { ColisWithRelations } from "@/lib/types";
@@ -61,7 +61,10 @@ export default function ColisDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const role = (session?.user as any)?.role ?? "";
+  const isSuperAdmin = role === Roles.SUPER_ADMIN;
 
+  const [appSettings, setAppSettings] = useState<{ agentsCanEditColis: boolean; agentsCanDeleteColis: boolean }>({ agentsCanEditColis: false, agentsCanDeleteColis: false });
   const [colis, setColis] = useState<ColisWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatut, setUpdatingStatut] = useState(false);
@@ -98,7 +101,11 @@ export default function ColisDetailPage() {
 
   useEffect(() => {
     fetchColis();
+    fetch("/api/parametres").then((r) => r.json()).then(setAppSettings);
   }, [code]);
+
+  const canEdit = isSuperAdmin || appSettings.agentsCanEditColis;
+  const canDelete = isSuperAdmin || appSettings.agentsCanDeleteColis;
 
   function openEdit() {
     if (!colis) return;
@@ -226,12 +233,16 @@ export default function ColisDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge statut={colis.statut} />
-          <Button variant="outline" size="icon" onClick={openEdit}>
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={deleteColis} disabled={deleteLoading}>
-            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
-          </Button>
+          {canEdit && (
+            <Button variant="outline" size="icon" onClick={openEdit}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="outline" size="icon" onClick={deleteColis} disabled={deleteLoading}>
+              {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+            </Button>
+          )}
         </div>
       </div>
 
