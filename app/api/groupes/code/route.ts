@@ -11,16 +11,25 @@ export async function GET(req: NextRequest) {
   const isCi = dest === "COTE_DIVOIRE";
   const prefix = isCi ? "CI-CF" : "ML-CF";
 
-  const last = await prisma.groupeColis.findFirst({
-    where: { code: { startsWith: prefix } },
-    orderBy: { code: "desc" },
-    select: { code: true },
-  });
+  // Pour Mali, chercher aussi les anciens codes sans préfixe "ML-" (ex: CF0032)
+  const prefixes = isCi ? ["CI-CF"] : ["ML-CF", "CF"];
+
+  const candidates = await Promise.all(
+    prefixes.map((p) =>
+      prisma.groupeColis.findFirst({
+        where: { code: { startsWith: p } },
+        orderBy: { code: "desc" },
+        select: { code: true },
+      })
+    )
+  );
 
   let num = 1;
-  if (last) {
-    const parsed = parseInt(last.code.replace(prefix, ""), 10);
-    if (!isNaN(parsed)) num = parsed + 1;
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    if (!c) continue;
+    const parsed = parseInt(c.code.replace(prefixes[i]!, ""), 10);
+    if (!isNaN(parsed) && parsed + 1 > num) num = parsed + 1;
   }
 
   if (num > 9999) {
