@@ -2,9 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { sendSMS } from "@/lib/sms";
+import { sendColisNotification } from "@/lib/whatsapp";
 import { getEtablissement } from "@/lib/settings";
-import { getStatutText } from "@/lib/utils";
 import { StatutColis } from "@/lib/enums";
 
 export async function PUT(
@@ -52,18 +51,22 @@ export async function PUT(
       },
     });
 
-    // SMS notification (fire & forget)
+    // WhatsApp notification (fire & forget)
     prisma.colis
-      .findUnique({ where: { id: colis.id } })
+      .findUnique({ where: { id: colis.id }, include: { agenceDestination: true } })
       .then(async (c) => {
         if (!c) return;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        const nom    = await getEtablissement();
         const country = c.destination === "COTE_DIVOIRE" ? "CI" as const : "ML" as const;
-        const msg    = `Votre colis ${c.code} est maintenant: ${getStatutText(statut)}. Suivi: ${appUrl}/suivi/${c.tokenPublic}\n— ${nom}`;
-        await sendSMS(c.destinatairePhone, msg, country);
+        await sendColisNotification({
+          to         : c.destinatairePhone,
+          code       : c.code,
+          statut,
+          agenceNom  : c.agenceDestination?.nom ?? c.destination,
+          tokenPublic: c.tokenPublic,
+          country,
+        });
       })
-      .catch((err) => console.error("SMS error:", err));
+      .catch((err) => console.error("[Meta] Erreur notification statut:", err));
 
     return NextResponse.json(colis);
   } catch (error) {

@@ -2,9 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { sendSMSBulk } from "@/lib/sms";
-import { getEtablissement } from "@/lib/settings";
-import { getStatutText } from "@/lib/utils";
+import { sendSuiviColisBulk, sendPretRetirerBulk } from "@/lib/whatsapp";
+import { StatutColis } from "@/lib/enums";
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -47,24 +46,30 @@ export async function POST(req: NextRequest) {
       });
 
       // WhatsApp fire & forget — envoi séquentiel avec délai entre chaque message
-      Promise.all([
-        prisma.colis.findMany({
-          where: { id: { in: updated.map((c) => c.id) } },
-          select: { code: true, destinatairePhone: true, tokenPublic: true, destination: true },
-        }),
-        getEtablissement(),
-      ])
-        .then(([colis, nom]) => {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-          const sig    = `\n— ${nom}`;
-          const messages = colis.map((c) => ({
-            to:      c.destinatairePhone,
-            body:    `Votre colis ${c.code} est maintenant: ${getStatutText(toStatut)}. Suivi: ${appUrl}/suivi/${c.tokenPublic}${sig}`,
-            country: c.destination === "COTE_DIVOIRE" ? ("CI" as const) : ("ML" as const),
-          }));
-          return sendSMSBulk(messages);
+      prisma.colis.findMany({
+          where  : { id: { in: updated.map((c) => c.id) } },
+          include: { agenceDestination: true },
         })
-        .catch((err) => console.error("[Wasender] Erreur envoi groupé:", err));
+        .then((colis) => {
+          const isPretRetirer = toStatut === StatutColis.PRET_RETIRER;
+          if (isPretRetirer) {
+            return sendPretRetirerBulk(colis.map((c) => ({
+              to         : c.destinatairePhone,
+              code       : c.code,
+              agenceNom  : c.agenceDestination?.nom ?? c.destination,
+              tokenPublic: c.tokenPublic,
+              country    : c.destination === "COTE_DIVOIRE" ? ("CI" as const) : ("ML" as const),
+            })));
+          }
+          return sendSuiviColisBulk(colis.map((c) => ({
+            to         : c.destinatairePhone,
+            code       : c.code,
+            statut     : toStatut,
+            tokenPublic: c.tokenPublic,
+            country    : c.destination === "COTE_DIVOIRE" ? ("CI" as const) : ("ML" as const),
+          })));
+        })
+        .catch((err) => console.error("[Meta] Erreur envoi groupé:", err));
     }
 
     return NextResponse.json({ count });

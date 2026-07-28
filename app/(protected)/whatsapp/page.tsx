@@ -116,7 +116,7 @@ export default function WhatsappPage() {
       {/* Header */}
       <div className="flex items-center justify-between pb-6 border-b border-border">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground mb-1">Wasender</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground mb-1">Meta WhatsApp</p>
           <h1 className="text-sm font-bold uppercase tracking-[0.2em]">Logs WhatsApp</h1>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function WhatsappPage() {
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">
-            À configurer dans le dashboard Wasender → Settings → Webhook URL
+            À configurer dans le dashboard Meta (developers.facebook.com) → WhatsApp → Configuration → Webhook, avec le verify token défini dans WHATSAPP_WEBHOOK_VERIFY_TOKEN, puis s&apos;abonner au champ « messages »
           </p>
         </div>
       </div>

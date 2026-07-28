@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { generateColisCode, generatePublicToken } from "@/lib/utils";
 import { Roles, StatutColis, isAdmin } from "@/lib/enums";
-import { sendSMS } from "@/lib/sms";
+import { sendSuiviColis } from "@/lib/whatsapp";
 import { getEtablissement } from "@/lib/settings";
 
 export async function GET() {
@@ -146,24 +146,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // SMS notifications (fire & forget)
+    // WhatsApp notifications (fire & forget)
     prisma.colis.findUnique({ where: { id: colis.id } })
       .then(async (c) => {
         if (!c) return;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        const suivi  = `${appUrl}/suivi/${c.tokenPublic}`;
-        const nom    = await getEtablissement();
-        const sig    = `\n— ${nom}`;
         const country = c.destination === "COTE_DIVOIRE" ? "CI" as const : "ML" as const;
-        const tasks  = [
-          sendSMS(c.destinatairePhone, `Un colis vous est destiné depuis la Chine. Code: ${c.code}. Suivez: ${suivi}${sig}`, country),
-        ];
+        const base    = { code: c.code, statut: StatutColis.ENREGISTRE, tokenPublic: c.tokenPublic, country };
+        const tasks   = [sendSuiviColis({ to: c.destinatairePhone, ...base })];
         if (!c.expediteurEstFournisseur && c.expediteurPhone) {
-          tasks.push(sendSMS(c.expediteurPhone, `Votre colis a été enregistré. Code: ${c.code}. Suivi: ${suivi}${sig}`, country));
+          tasks.push(sendSuiviColis({ to: c.expediteurPhone, ...base }));
         }
         await Promise.all(tasks);
       })
-      .catch((err) => console.error("SMS error:", err));
+      .catch((err) => console.error("[Meta] Erreur notification enregistrement:", err));
 
     return NextResponse.json(colis, { status: 201 });
   } catch (error) {
