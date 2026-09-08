@@ -28,7 +28,7 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { PasswordInput } from "@/components/password-input";
-import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Loader2, Check } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Loader2, Check, KeyRound, Copy } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -45,12 +45,15 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function UtilisateursPage() {
-  const { users, loading, createUser, updateUser, toggleActive, refetch } =
+  const { users, loading, createUser, updateUser, toggleActive, resetPassword, refetch } =
     useUsers();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<(typeof users)[0] | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
@@ -97,6 +100,24 @@ export default function UtilisateursPage() {
       role: user.role,
     });
     setOpen(true);
+  }
+
+  async function onConfirmReset() {
+    if (!resetTarget) return;
+    setResetting(true);
+    const res = await resetPassword(resetTarget.id);
+    setResetting(false);
+    if (res.success && res.tempPassword) {
+      setTempPassword(res.tempPassword);
+    } else {
+      setResetTarget(null);
+      toast.error(res.error ?? "Erreur", { position: "bottom-right" });
+    }
+  }
+
+  function closeReset() {
+    setResetTarget(null);
+    setTempPassword(null);
   }
 
   async function onSubmit(values: z.infer<typeof userSchema>) {
@@ -200,6 +221,14 @@ export default function UtilisateursPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Réinitialiser le mot de passe"
+                        onClick={() => setResetTarget(u)}
+                      >
+                        <KeyRound className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         disabled={togglingId === u.id}
                         onClick={async () => {
                           setTogglingId(u.id);
@@ -224,6 +253,69 @@ export default function UtilisateursPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog réinitialisation mot de passe */}
+      <Dialog open={!!resetTarget} onOpenChange={(o) => !o && closeReset()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+          </DialogHeader>
+          {tempPassword ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Nouveau mot de passe temporaire pour{" "}
+                <span className="font-medium text-foreground">
+                  {resetTarget?.firstname} {resetTarget?.lastname}
+                </span>{" "}
+                — transmets-le lui, il devra le changer à sa prochaine
+                connexion. Il ne sera plus affiché ensuite.
+              </p>
+              <div className="bg-muted border px-4 py-3 flex items-center justify-between gap-4">
+                <p className="font-mono text-lg tracking-wider select-all">
+                  {tempPassword}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPassword);
+                    toast.success("Copié", { position: "bottom-right" });
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-1" /> Copier
+                </Button>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={closeReset}>Fermer</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Générer un nouveau mot de passe temporaire pour{" "}
+                <span className="font-medium text-foreground">
+                  {resetTarget?.firstname} {resetTarget?.lastname}
+                </span>{" "}
+                ? Ses sessions en cours seront déconnectées et il devra choisir
+                un nouveau mot de passe à sa prochaine connexion.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={closeReset} disabled={resetting}>
+                  Annuler
+                </Button>
+                <Button onClick={onConfirmReset} disabled={resetting}>
+                  {resetting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="w-4 h-4" />
+                  )}
+                  Réinitialiser
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>

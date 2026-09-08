@@ -112,6 +112,24 @@ export function useUsers() {
     }
   };
 
+  const resetPassword = async (id: string) => {
+    try {
+      const response = await fetch(`/api/utilisateurs/${id}/reset-password`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reset password");
+      }
+      return { success: true, tempPassword: data.tempPassword as string };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "An error occurred",
+      };
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -123,6 +141,7 @@ export function useUsers() {
     createUser,
     updateUser,
     toggleActive,
+    resetPassword,
     refetch: fetchUsers,
   };
 }
